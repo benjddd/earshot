@@ -4,8 +4,9 @@ import { RUNTIME_PROMPT, MODEL_ID, EFFORT } from '../shared/runtime-prompt.js';
 // ---------- fixed things, in one place ----------
 
 // Verify tolerance, the one constant. A value matches when it is within the larger of
-// ABS units or REL of the record's value. UNVERIFIED until the scout's proof reports the largest error.
-const VERIFY_TOLERANCE = { abs: 2, rel: 0.05 };
+// ABS units or REL of the record's value. Measured by the scout's proof (BOARD/DATA.md, 18:29).
+const VERIFY_TOLERANCE = { abs: 3, rel: 0.05 };
+const TOLERANCE_TEXT = `within ${VERIFY_TOLERANCE.abs} units or ${VERIFY_TOLERANCE.rel * 100}%, whichever is larger`;
 
 const WITHHELD_URL = '/withheld/earshot-data.json';
 const WITHHELD_NAME = 'earshot-data.json';
@@ -16,7 +17,7 @@ const MAX_BASE64 = 4000000;
 // Prepared inputs. Swap src and label here when the phone photos land.
 const PREPARED = {
   sample: { id: 'chart2-clean', src: '/samples/chart2-clean.png', label: 'Sample: Earshot chart 2, clean image, not a photo.' },
-  broken: { id: 'chart3-patched', src: '/samples/chart3-patched.png', label: 'Break it: Earshot chart 3 with a patch drawn over the series. Clean image, not a photo.' },
+  broken: { id: 'chart3-patched', src: '/samples/chart3-patched.png', label: 'Built to fail: Earshot chart 3 with a patch drawn over the series. Clean image, not a photo.' },
 };
 
 const FIND_OUT = 'To find out: supply a sharper image of the same chart without glare, or ask the sender for the data behind it.';
@@ -337,10 +338,16 @@ async function run() {
     await say(partialText());
     if (runId !== state.runId) return;
   }
+  state.auto = runId;
   announce('Playing the chart as pitch. Higher value, higher note.');
   await playChart();
-  if (runId !== state.runId) return;
+  if (runId !== state.runId || state.auto !== runId) return; // the user took over
   showSummary();
+}
+
+// Any action by the user ends the automatic play-then-summary sequence.
+function interrupt() {
+  state.auto = 0;
 }
 
 function statusText() {
@@ -363,7 +370,16 @@ function notKnownText(what) {
 
 function partialText() {
   const t = state.table;
-  return notKnownText(`${t.missing} of ${t.count + t.missing} values. ${t.reason}`);
+  return notKnownText(`${t.missing} of ${t.count + t.missing} values. Reason given: ${cap(t.reason)}`);
+}
+
+function cap(text) {
+  const s = tidy(text);
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+function pointNotKnown(p) {
+  return notKnownText(`this value. Reason given: ${cap(p.reason || state.table.reason)}`);
 }
 
 function partialNotKnown() {
@@ -472,6 +488,7 @@ function renderTable(table) {
     el.tBody.append(tr);
   });
   el.tableWrap.hidden = false;
+  el.tableWrap.parentElement.classList.toggle('wide', table.xs.length > 4);
 }
 
 function span(cls, text) {
@@ -486,7 +503,7 @@ function paintCell(b, p, outcome) {
   b.textContent = '';
   b.classList.remove('is-match', 'is-mismatch', 'is-unknown');
   if (p.value === null) {
-    b.append(span('unknown-word', 'Not known'));
+    b.append(span('unknown-word', 'Not known'), span('sr-only', `: ${pointNotKnown(p).slice(11)}`));
     return;
   }
   if (!outcome) {
@@ -505,27 +522,119 @@ function paintCell(b, p, outcome) {
   }
 }
 
-// One tab stop for the table; arrow keys move between values.
+// Explore by keyboard. One tab stop for the table. Left and Right step through a series point by point,
+// with pitch and the spoken value. Up and Down switch series (or panel, or row). Home and End jump
+// to the ends of the series. T gives the trend of the series.
 el.tBody.addEventListener('keydown', (e) => {
   const b = e.target.closest('.cell');
-  if (!b) return;
-  const cells = [...el.tBody.querySelectorAll('.cell')];
-  const cols = state.table.xs.length;
-  const i = cells.indexOf(b);
-  let j = i;
-  if (e.key === 'ArrowRight') j = i + 1;
-  else if (e.key === 'ArrowLeft') j = i - 1;
-  else if (e.key === 'ArrowDown') j = i + cols;
-  else if (e.key === 'ArrowUp') j = i - cols;
-  else if (e.key === 'Home') j = 0;
-  else if (e.key === 'End') j = cells.length - 1;
+  if (!b || e.altKey || e.metaKey) return;
+  const t = state.table;
+  const si = Number(b.dataset.s);
+  const pi = Number(b.dataset.p);
+  const k = e.key;
+  if (k.toLowerCase() === 't' && !e.ctrlKey) { e.preventDefault(); trend(si); return; }
+  if (e.ctrlKey) return;
+  let ns = si, np = pi;
+  if (k === 'ArrowRight') np = pi + 1;
+  else if (k === 'ArrowLeft') np = pi - 1;
+  else if (k === 'ArrowDown') ns = si + 1;
+  else if (k === 'ArrowUp') ns = si - 1;
+  else if (k === 'Home') np = 0;
+  else if (k === 'End') np = t.series[si].points.length - 1;
   else return;
   e.preventDefault();
-  if (j < 0 || j >= cells.length) return;
-  cells[i].tabIndex = -1;
-  cells[j].tabIndex = 0;
-  cells[j].focus();
+  if (ns < 0 || ns >= t.series.length) { say(ns < 0 ? 'First series.' : 'Last series.'); return; }
+  if (ns !== si) {
+    const same = t.series[ns].points.findIndex((p) => p.x === t.series[si].points[pi].x);
+    np = same >= 0 ? same : Math.min(pi, t.series[ns].points.length - 1);
+  }
+  if (np < 0 || np >= t.series[ns].points.length) { say(np < 0 ? 'Start of the series.' : 'End of the series.'); return; }
+  const next = cellAt(ns, np);
+  if (!next) return;
+  b.tabIndex = -1;
+  next.tabIndex = 0;
+  next.focus();
+  stepTo(ns, np, ns !== si);
 });
+
+function playNote(value, when = 0, length = 0.22) {
+  const ctx = audio();
+  if (!ctx || value === null) return;
+  const at = ctx.currentTime + 0.02 + when;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = 'triangle';
+  osc.frequency.value = pitchFor(value, state.table);
+  gain.gain.setValueAtTime(0, at);
+  gain.gain.linearRampToValueAtTime(0.3, at + 0.015);
+  gain.gain.setValueAtTime(0.3, at + length - 0.04);
+  gain.gain.linearRampToValueAtTime(0, at + length);
+  osc.connect(gain).connect(ctx.destination);
+  osc.start(at);
+  osc.stop(at + length + 0.02);
+  state.nodes.push(osc);
+}
+
+// One step: the note for the value, the value shown in the margin, and the value spoken.
+function stepTo(si, pi, nameSeries) {
+  interrupt();
+  stopSound();
+  const t = state.table;
+  const s = t.series[si];
+  const p = s.points[pi];
+  playNote(p.value);
+  document.querySelectorAll('.cell.selected').forEach((c) => c.classList.remove('selected'));
+  const c = cellAt(si, pi);
+  if (c) c.classList.add('selected');
+  el.claim.hidden = false;
+  el.claim.textContent = '';
+  const head = document.createElement('p');
+  head.className = 'claim-head';
+  head.textContent = `${s.name}, ${p.x}`;
+  const v = document.createElement('p');
+  v.className = p.value === null ? 'claim-unknown' : 'claim-value';
+  v.textContent = p.value === null ? 'Not known. No note is played. Enter gives the reason.' : fmt(p.value);
+  if (p.value !== null && t.unit) v.append(span('claim-unit', ` ${t.unit}`));
+  el.claim.append(head, v);
+  const value = p.value === null ? 'not known' : fmt(p.value);
+  say(nameSeries ? `${s.name}. ${p.x}: ${value}.` : `${p.x}: ${value}.`);
+}
+
+function trendText(si) {
+  const s = state.table.series[si];
+  const pts = s.points.filter((p) => p.value !== null);
+  if (pts.length < 2) return `${s.name}: Not known: the trend, with fewer than 2 values read. ${FIND_OUT}`;
+  const first = pts[0], last = pts[pts.length - 1];
+  const hi = pts.reduce((a, p) => (p.value > a.value ? p : a));
+  const lo = pts.reduce((a, p) => (p.value < a.value ? p : a));
+  const d = last.value - first.value;
+  const move = d > 0 ? `rises by ${fmt(d)}` : d < 0 ? `falls by ${fmt(-d)}` : 'ends level';
+  const missing = s.points.length - pts.length;
+  return `${s.name} ${move}, from ${fmt(first.value)} at ${first.x} to ${fmt(last.value)} at ${last.x}. Highest ${fmt(hi.value)} at ${hi.x}. Lowest ${fmt(lo.value)} at ${lo.x}.${missing ? ` ${missing} values not known.` : ''}`;
+}
+
+// T: the series as pitch, then its trend, by plain code from the table.
+function trend(si) {
+  interrupt();
+  stopSound();
+  stopSpeech();
+  const s = state.table.series[si];
+  let when = 0;
+  s.points.forEach((p) => { playNote(p.value, when, 0.2); when += 0.2; });
+  const text = trendText(si);
+  el.claim.hidden = false;
+  el.claim.textContent = '';
+  const head = document.createElement('p');
+  head.className = 'claim-head';
+  head.textContent = `Trend, ${s.name}`;
+  const body = document.createElement('p');
+  body.textContent = text;
+  const src = document.createElement('p');
+  src.append(mark('derived', 'Derived by plain code from the table.'));
+  el.claim.append(head, body, src);
+  announce(text);
+  state.timers.push(setTimeout(() => speakOnly(text), when * 1000 + 150));
+}
 
 el.tBody.addEventListener('click', (e) => {
   const b = e.target.closest('.cell');
@@ -541,6 +650,8 @@ function mark(kind, word) {
 
 // Enter on a value: its source, shown and spoken.
 function selectClaim(si, pi) {
+  interrupt();
+  stopSound();
   const t = state.table;
   const s = t.series[si];
   const p = s.points[pi];
@@ -557,7 +668,7 @@ function selectClaim(si, pi) {
   if (p.value === null) {
     const u = document.createElement('p');
     u.className = 'claim-unknown';
-    text = notKnownText(p.reason || t.reason);
+    text = pointNotKnown(p);
     u.textContent = text;
     el.claim.append(u);
     text = `${s.name}, ${p.x}. ${text}`;
@@ -641,6 +752,7 @@ function within(model, record) {
 async function verify() {
   const t = state.table;
   if (!t || !t.count) return;
+  interrupt();
   stopSound();
   let data = null;
   try {
@@ -698,10 +810,10 @@ async function verify() {
   el.statusVerify.className = `status status-verify ${counts.mismatch ? 'has-mismatch' : counts.unknown ? 'has-unknown' : 'all-match'}`;
   el.statusVerify.textContent = '';
   if (!counts.mismatch && !counts.unknown) el.statusVerify.append(span('tri', ''));
-  el.statusVerify.append(document.createTextNode(`${line} Record: ${recordName}.`));
+  el.statusVerify.append(document.createTextNode(`${line} Record: ${recordName}. Tolerance: ${TOLERANCE_TEXT}.`));
   el.statement.className = `statement ${counts.mismatch ? 'statement-mismatch' : counts.unknown ? 'statement-unknown' : 'statement-match'}`;
   el.statement.textContent = counts.mismatch ? `${counts.mismatch} mismatch` : counts.unknown ? `${counts.unknown} not known` : `${counts.match} match`;
-  say(`Verify. ${line} Checked against the withheld record ${rec.title}, within ${VERIFY_TOLERANCE.abs} units or ${VERIFY_TOLERANCE.rel * 100} percent.`);
+  say(`Verify. ${line} Checked against the withheld record ${rec.title}, ${TOLERANCE_TEXT.replace('%', ' percent')}.`);
 }
 
 // ---------- Prompt sheet ----------
@@ -740,6 +852,7 @@ el.sheetClose.addEventListener('click', closePrompt);
 async function replay() {
   if (!state.table || !state.table.count) return;
   const runId = state.runId;
+  interrupt();
   stopSpeech();
   announce('Playing the chart as pitch. Higher value, higher note.');
   await playChart();
@@ -761,6 +874,7 @@ document.addEventListener('keydown', (e) => {
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   if (e.key === 'Escape') {
     if (!el.sheet.hidden) { closePrompt(); return; }
+    interrupt();
     stopSound();
     stopSpeech();
     showStatus();
