@@ -74,24 +74,92 @@ function announce(text) {
   setTimeout(() => { el.live.textContent = text; }, 40);
 }
 
-function stopSpeech() {
-  if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+// One owner for the voice. A sentence ends when the browser says it has ended: the utterance's end
+// event, or, if that event never fires, the browser reporting that it is no longer speaking.
+// Never a timer guessed from the length of the text.
+const synth = 'speechSynthesis' in window ? window.speechSynthesis : null;
+let speechRun = 0;      // changes whenever speech is cancelled or a new speech starts
+let lastCancel = 0;
+let liveUtterance = null; // kept in a variable so the browser cannot drop its end event
+let voice = null;
+function pickVoice() {
+  if (!synth) return;
+  const vs = synth.getVoices();
+  voice = vs.find((v) => v.localService && /^en[-_]US/i.test(v.lang)) || vs.find((v) => v.localService && /^en/i.test(v.lang)) || vs.find((v) => /^en/i.test(v.lang)) || null;
+}
+if (synth) {
+  pickVoice();
+  synth.addEventListener('voiceschanged', pickVoice);
 }
 
-// The built-in voice (unless muted). Any speech still running is cancelled first: nothing queues.
-function speakOnly(text) {
+function stopSpeech() {
+  speechRun += 1;
+  if (synth && (synth.speaking || synth.pending)) {
+    synth.cancel();
+    lastCancel = performance.now();
+  }
+}
+
+function speakSentence(text, run) {
   return new Promise((resolve) => {
-    if (state.muted || !('speechSynthesis' in window)) { resolve(); return; }
-    stopSpeech();
     const u = new SpeechSynthesisUtterance(text);
-    u.lang = 'en-US';
+    liveUtterance = u;
+    if (voice) u.voice = voice;
+    u.lang = voice ? voice.lang : 'en-US';
     u.rate = SOUND.speechRate;
-    const guard = setTimeout(resolve, 2500 + text.length * 90);
-    const done = () => { clearTimeout(guard); resolve(); };
-    u.onend = done;
-    u.onerror = done;
-    window.speechSynthesis.speak(u);
+    const t0 = performance.now();
+    let started = false;
+    let finished = false;
+    let poll = 0;
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      clearInterval(poll);
+      if (liveUtterance === u) liveUtterance = null;
+      resolve();
+    };
+    u.onstart = () => { started = true; };
+    u.onend = finish;
+    u.onerror = finish;
+    // Fallback only: the end event did not fire, but the browser has stopped speaking (or was cancelled).
+    poll = setInterval(() => {
+      const age = performance.now() - t0;
+      if (run !== speechRun) { finish(); return; }
+      if ((started || age > 2000) && !synth.speaking && !synth.pending) finish();
+      if (age > 60000) finish();
+    }, 120);
+    synth.speak(u);
   });
+}
+
+// Resolves when nothing is being spoken (used before a sound that no key press asked for).
+async function untilSilent() {
+  const t0 = performance.now();
+  while (synth && (synth.speaking || synth.pending) && performance.now() - t0 < 30000) await wait(100);
+}
+
+// The built-in voice, sentence by sentence; resolves when the last sentence has actually ended.
+// With the voice muted (a screen reader is reading the live region) it waits a reading time instead.
+async function speakOnly(text) {
+  if (!synth) return;
+  if (state.muted) {
+    const run = speechRun;
+    const until = performance.now() + Math.min(12000, 600 + text.length * 65);
+    while (performance.now() < until && run === speechRun) await wait(100);
+    return;
+  }
+  if (synth.speaking || synth.pending) {
+    synth.cancel();
+    lastCancel = performance.now();
+  }
+  speechRun += 1;
+  const run = speechRun;
+  const since = performance.now() - lastCancel;
+  if (since < 150) await wait(150 - since); // a cancel needs a moment, or the next sentence is clipped
+  for (const part of text.split(/(?<=[.!?])\s+(?=[A-Z0-9])/)) {
+    if (run !== speechRun) return;
+    await speakSentence(part, run);
+  }
 }
 
 // Speaks and writes the same text to the live region. At most two short sentences per action.
@@ -534,6 +602,8 @@ async function run() {
   state.seconds = (performance.now() - started) / 1000;
   el.again.disabled = false;
   renderReading(payload.reading);
+  await untilSilent(); // the result arrived without a key press: a sentence still being spoken finishes first
+  if (runId !== state.runId) return;
   await announceReading();
 }
 
@@ -548,6 +618,8 @@ function renderReading(reading) {
 
   // What the chart says, by plain code from the table: one line, one headline, three key facts.
   const insight = { what: whatText(table), finding: finding(table), facts: keyFacts(table), unread: unreadText(table) };
+  // With values unread, the headline says what it is drawn from: it is not as sure as a clean read.
+  if (table.missing) insight.finding.text = `From the ${table.count} values read, with ${table.missing} not read: ${insight.finding.text}`;
   state.insight = insight;
   el.what.textContent = insight.what;
   el.what.hidden = false;
@@ -723,8 +795,19 @@ function drawPlot(active) {
   const vals = (olds
     ? t.series[active].points.map((p) => p.value).concat(olds[active])
     : t.series.flatMap((s) => s.points.map((p) => p.value))).filter((v) => v !== null);
-  const min = Math.min(...vals), max = Math.max(...vals);
-  const log = t.log && min > 0;
+  const dataMin = Math.min(...vals), dataMax = Math.max(...vals);
+  // Axis ticks are round numbers: powers of ten on a log axis spanning a decade or more, else steps of 1, 2 or 5.
+  const log = t.log && dataMin > 0 && dataMax / dataMin >= 10;
+  let ticks = [];
+  if (log) {
+    for (let k = Math.floor(Math.log10(dataMin)); k <= Math.ceil(Math.log10(dataMax)); k += 1) ticks.push(10 ** k);
+  } else if (dataMax > dataMin) {
+    const raw = (dataMax - dataMin) / 3;
+    const mag = 10 ** Math.floor(Math.log10(raw));
+    const step = [1, 2, 5, 10].map((m) => m * mag).find((s) => s >= raw);
+    for (let v = Math.floor(dataMin / step) * step; v < dataMax + step; v += step) ticks.push(Math.round(v * 1e6) / 1e6);
+  } else ticks = [dataMin];
+  const min = ticks[0], max = ticks[ticks.length - 1];
   const W = 720, H = 340, L = 84, R = 34, T = 16, B = 40;
   const x = (i) => (t.xs.length > 1 ? L + ((W - L - R) * i) / (t.xs.length - 1) : (L + W - R) / 2);
   const frac = (v) => (max > min ? (log ? (Math.log(v) - Math.log(min)) / (Math.log(max) - Math.log(min)) : (v - min) / (max - min)) : 0.5);
@@ -741,10 +824,9 @@ function drawPlot(active) {
   };
   const g = el.plot;
   g.textContent = '';
-  const mid = log ? Math.sqrt(min * max) : (min + max) / 2;
-  for (const v of max > min ? [min, mid, max] : [min]) {
+  for (const v of ticks) {
     g.append(svgEl('line', { x1: L, x2: W - R, y1: y(v), y2: y(v), class: 'plot-grid' }));
-    g.append(svgEl('text', { x: L - 8, y: y(v) + 7, 'text-anchor': 'end', class: 'plot-tick' }, fmt(Math.round(v * 10) / 10)));
+    g.append(svgEl('text', { x: L - 8, y: y(v) + 7, 'text-anchor': 'end', class: 'plot-tick' }, fmt(v)));
   }
   const every = t.xs.length > 9 ? Math.ceil(t.xs.length / 6) : 1;
   t.xs.forEach((label, i) => {
@@ -1264,6 +1346,10 @@ async function playBoth() {
   }
   const s = t.series[si];
   drawPlot(si);
+  // The line above the chart names the series being played and that two readings of the same photo follow.
+  el.statement.textContent = `${s.name}: two readings of the same photo, ${MODEL_ID} first, then ${prev.model}.`;
+  el.statement.className = 'statement headline';
+  el.facts.hidden = true; // the key facts belong to one reading; this view compares two
   const news = s.points.map((p) => p.value);
   const olds = state.old[si];
   let total = 0;
@@ -1287,7 +1373,7 @@ async function playBoth() {
   );
 
   // One headline, 400 ms, two glides 600 ms apart on one pitch map, then one closing sentence.
-  await say(`${s.name}: ${MODEL_ID} first, then ${prev.model}.`);
+  await say(`${s.name}: two readings of the same photo, ${MODEL_ID} first, then ${prev.model}.`);
   if (!alive(seq)) return;
   await wait(SOUND.headlineGap * 1000);
   if (!alive(seq)) return;
