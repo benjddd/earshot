@@ -70,6 +70,31 @@ a { color: var(--ink); text-decoration-thickness: 2px; text-underline-offset: 4p
   color: var(--over);
 }
 .statement-match { color: var(--ink); }
+.statement2 {
+  margin: -8px 0 16px;
+  font-weight: 700;
+  font-size: 48px;
+  line-height: 1.05;
+  color: var(--over);
+}
+.statement2.statement-match { color: var(--ink); }
+
+/* both readings: the previous model's value under this model's value */
+.cell .old {
+  display: flex;
+  flex-wrap: wrap;
+  flex-basis: 100%;
+  align-items: center;
+  gap: 2px 4px;
+  color: var(--over);
+  font-size: 20px;
+}
+.cell .old-tag { font-family: var(--text); font-size: 18px; font-weight: 400; color: var(--margin); }
+.cell .old.old-match { color: var(--ink); }
+.cell .old .tri { border-inline-width: 6px; border-bottom-width: 11px; }
+.cell.differs { border: 3px solid var(--over); background: var(--tint); }
+.cell.sounding-old .old { text-decoration: underline; text-decoration-thickness: 3px; }
+.claim-diff { color: var(--over); font-weight: 600; }
 
 .sheet-row {
   display: flex;
@@ -94,12 +119,16 @@ a { color: var(--ink); text-decoration-thickness: 2px; text-underline-offset: 4p
 .table-wrap { flex: 1 1 420px; min-width: 0; overflow-x: auto; }
 
 /* more than 4 columns: the image gives way so the whole table shows */
-.sheet-row.wide .figure { flex: 0 1 280px; }
-.sheet-row.wide .table-wrap { flex: 1 1 560px; }
+.sheet-row.wide .figure { flex: 1 1 400px; max-width: 560px; }
+.sheet-row.wide .table-wrap { flex: 1 1 540px; }
 .sheet-row.wide th, .sheet-row.wide td { padding: 2px 2px; }
 .sheet-row.wide .cell { font-size: 22px; min-width: 0; padding: 2px 3px; gap: 3px; }
 .sheet-row.wide th { font-size: 18px; white-space: normal; }
 .sheet-row.wide .unknown-word { overflow-wrap: normal; }
+/* both readings showing: the table needs the room, the image gives way */
+.sheet-row.comparing .figure { flex: 0 1 300px; }
+.sheet-row.comparing .table-wrap { flex: 1 1 640px; }
+.sheet-row.comparing .cell .block { padding: 0 3px; }
 
 table { border-collapse: collapse; width: 100%; }
 caption { text-align: start; padding-bottom: 8px; font-weight: 600; }

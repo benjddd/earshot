@@ -10,6 +10,7 @@
     <div class="page" id="page">
       <main class="sheet" id="sheet" aria-label="Chart and values">
         <p class="statement" id="statement">No chart yet</p>
+        <p class="statement2" id="statement2" hidden></p>
         <div class="sheet-row">
           <figure class="figure" id="figure" hidden>
             <img id="chart-img" alt="" />
@@ -43,6 +44,7 @@
         </div>
         <div class="controls" role="group" aria-label="Result actions">
           <button type="button" class="btn" id="btn-play" disabled aria-keyshortcuts="P">Play</button>
+          <button type="button" class="btn" id="btn-both" disabled>Play both</button>
           <button type="button" class="btn" id="btn-verify" disabled>Verify</button>
           <button type="button" class="btn" id="btn-again" disabled>Run again</button>
         </div>
@@ -53,12 +55,12 @@
 
         <section class="claim" id="claim" aria-label="Selected value and summary" hidden></section>
 
-        <p class="keys" id="keys">Keys: P plays the chart again. M turns the built-in voice off or on. Esc stops sound.</p>
+        <p class="keys" id="keys">Keys: P plays the chart again. M turns the built-in voice off or on. Esc or Space stops all sound.</p>
 
         <footer class="foot">
           <p>Live: each reading by claude-fable-5-2, the pitch, the summary and Verify, computed on every use.</p>
           <p>Cached: nothing.</p>
-          <p>Fixed: tonight's 3 charts and the withheld data behind them, drawn at 18:13. Sample and Break it are clean images, not photos. <a href="/prompt">Build prompt</a></p>
+          <p>Fixed: tonight's 3 charts and the withheld data behind them, drawn at 18:13. Sample and Break it are clean images made tonight. Play both uses the claude-fable-5-1 reading of the Sample image, captured 18:27 tonight. <a href="/prompt">Build prompt</a></p>
         </footer>
       </aside>
     </div>
