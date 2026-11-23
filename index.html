@@ -9,22 +9,28 @@
   <body>
     <div class="page" id="page">
       <main class="sheet" id="sheet" aria-label="Chart and values">
+        <p class="what" id="what" hidden></p>
         <p class="statement" id="statement">No chart yet</p>
         <p class="statement2" id="statement2" hidden></p>
+        <ul class="facts" id="facts" aria-label="Key facts" hidden></ul>
         <div class="sheet-row">
+          <figure class="hear" id="hear" hidden>
+            <svg id="plot" viewBox="0 0 720 340" role="img" aria-label="The chart redrawn from the values read. Every value is in the table below."></svg>
+            <figcaption id="plot-caption"></figcaption>
+          </figure>
           <figure class="figure" id="figure" hidden>
             <img id="chart-img" alt="" />
             <video id="camera-video" hidden playsinline muted aria-label="Camera preview"></video>
             <figcaption id="img-caption"></figcaption>
           </figure>
-          <div class="table-wrap" id="table-wrap" hidden>
-            <table id="values" aria-describedby="table-help">
-              <caption id="values-caption"></caption>
-              <thead id="values-head"></thead>
-              <tbody id="values-body"></tbody>
-            </table>
-            <p class="table-help" id="table-help">In the table: Left and Right step through a series with pitch and the spoken value. Up and Down switch series. Home and End jump to its ends. T gives the trend. Enter names the source.</p>
-          </div>
+        </div>
+        <div class="table-wrap" id="table-wrap" hidden>
+          <table id="values" aria-describedby="table-help">
+            <caption id="values-caption"></caption>
+            <thead id="values-head"></thead>
+            <tbody id="values-body"></tbody>
+          </table>
+          <p class="table-help" id="table-help">In the table: Left and Right step through a series with pitch and the spoken value. Up and Down choose a series and play it. Home and End jump to its ends. T gives the trend. Enter names the source. With Play both, the second line in a cell is claude-fable-5-1; struck through means mismatch with the record.</p>
         </div>
       </main>
 
@@ -44,23 +50,24 @@
         </div>
         <div class="controls" role="group" aria-label="Result actions">
           <button type="button" class="btn" id="btn-play" disabled aria-keyshortcuts="P">Play</button>
-          <button type="button" class="btn" id="btn-both" disabled>Play both</button>
+          <button type="button" class="btn" id="btn-both">Play both</button>
           <button type="button" class="btn" id="btn-verify" disabled>Verify</button>
           <button type="button" class="btn" id="btn-again" disabled>Run again</button>
         </div>
 
         <p class="status" id="status">No chart read yet.</p>
-        <p class="status status-verify" id="status-verify" hidden></p>
+        <p class="check" id="status-verify" hidden></p>
+        <p class="check check-unread" id="unread" hidden></p>
         <p class="sr-only" id="live" role="status" aria-live="polite"></p>
 
         <section class="claim" id="claim" aria-label="Selected value and summary" hidden></section>
 
-        <p class="keys" id="keys">Keys: P plays the chart again. M turns the built-in voice off or on. Esc or Space stops all sound.</p>
+        <p class="keys" id="keys">Keys: P plays the series in focus. A plays all series in turn. K speaks the key facts. M turns the built-in voice off or on. Esc or Space stops all sound.</p>
 
         <footer class="foot">
-          <p>Live: each reading by claude-fable-5-2, the pitch, the summary and Verify, computed on every use.</p>
-          <p>Cached: nothing.</p>
-          <p>Fixed: tonight's 3 charts and the withheld data behind them, drawn at 18:13. Sample and Break it are clean images made tonight. Play both uses the claude-fable-5-1 reading of the Sample image, captured 18:27 tonight. <a href="/prompt">Build prompt</a></p>
+          <p>Live: each reading of a supplied image and of the Sample by claude-fable-5-2, the pitch, the summary and Verify, computed on every use.</p>
+          <p>Cached: Break it (18:50) and Play both (18:43) show readings captured tonight, labelled with model and time. Play both: claude-fable-5-2 and claude-fable-5-1, same photo, same settings. Run again reads live.</p>
+          <p>Fixed: tonight's 3 charts, the withheld data behind them (18:13), the phone photos of them (18:42). The glare in Break it was painted onto a photo. <a href="/prompt">Build prompt</a></p>
         </footer>
       </aside>
     </div>

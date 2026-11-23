@@ -1,0 +1,588 @@
+{
+  "id": "photo2",
+  "image": "/samples/photo2.jpg",
+  "is_photo": true,
+  "label": "Sample: phone photo of Earshot chart 2, taken tonight from a seat.",
+  "first_series": "",
+  "source": "BOARD/fallbacks/photo2.fable-5-1.json and photo2.fable-5-2.json (scout); image BOARD/proof/photo2.jpg scaled to 2000 px",
+  "current": {
+    "model": "claude-fable-5-2",
+    "captured": "18:43",
+    "reading": {
+      "title": "Earshot chart 2",
+      "kind": "panel grid",
+      "unit": "Satisfaction score (0 to 100)",
+      "y_scale": "linear",
+      "x": [
+        "2019",
+        "2020",
+        "2021"
+      ],
+      "series": [
+        {
+          "name": "Unit A",
+          "points": [
+            {
+              "x": "2019",
+              "value": 56
+            },
+            {
+              "x": "2020",
+              "value": 60
+            },
+            {
+              "x": "2021",
+              "value": 63
+            }
+          ]
+        },
+        {
+          "name": "Unit B",
+          "points": [
+            {
+              "x": "2019",
+              "value": 81
+            },
+            {
+              "x": "2020",
+              "value": 81
+            },
+            {
+              "x": "2021",
+              "value": 94
+            }
+          ]
+        },
+        {
+          "name": "Unit C",
+          "points": [
+            {
+              "x": "2019",
+              "value": 68
+            },
+            {
+              "x": "2020",
+              "value": 71
+            },
+            {
+              "x": "2021",
+              "value": 51
+            }
+          ]
+        },
+        {
+          "name": "Unit D",
+          "points": [
+            {
+              "x": "2019",
+              "value": 85
+            },
+            {
+              "x": "2020",
+              "value": 93
+            },
+            {
+              "x": "2021",
+              "value": 94
+            }
+          ]
+        },
+        {
+          "name": "Unit E",
+          "points": [
+            {
+              "x": "2019",
+              "value": 81
+            },
+            {
+              "x": "2020",
+              "value": 75
+            },
+            {
+              "x": "2021",
+              "value": 72
+            }
+          ]
+        },
+        {
+          "name": "Unit F",
+          "points": [
+            {
+              "x": "2019",
+              "value": 53
+            },
+            {
+              "x": "2020",
+              "value": 39
+            },
+            {
+              "x": "2021",
+              "value": 20
+            }
+          ]
+        },
+        {
+          "name": "Unit G",
+          "points": [
+            {
+              "x": "2019",
+              "value": 57
+            },
+            {
+              "x": "2020",
+              "value": 78
+            },
+            {
+              "x": "2021",
+              "value": 81
+            }
+          ]
+        },
+        {
+          "name": "Unit H",
+          "points": [
+            {
+              "x": "2019",
+              "value": 78
+            },
+            {
+              "x": "2020",
+              "value": 95
+            },
+            {
+              "x": "2021",
+              "value": 87
+            }
+          ]
+        },
+        {
+          "name": "Unit I",
+          "points": [
+            {
+              "x": "2019",
+              "value": 49
+            },
+            {
+              "x": "2020",
+              "value": 27
+            },
+            {
+              "x": "2021",
+              "value": 32
+            }
+          ]
+        },
+        {
+          "name": "Unit J",
+          "points": [
+            {
+              "x": "2019",
+              "value": 74
+            },
+            {
+              "x": "2020",
+              "value": 92
+            },
+            {
+              "x": "2021",
+              "value": 95
+            }
+          ]
+        },
+        {
+          "name": "Unit K",
+          "points": [
+            {
+              "x": "2019",
+              "value": 84
+            },
+            {
+              "x": "2020",
+              "value": 95
+            },
+            {
+              "x": "2021",
+              "value": 92
+            }
+          ]
+        },
+        {
+          "name": "Unit L",
+          "points": [
+            {
+              "x": "2019",
+              "value": 38
+            },
+            {
+              "x": "2020",
+              "value": 28
+            },
+            {
+              "x": "2021",
+              "value": 47
+            }
+          ]
+        },
+        {
+          "name": "Unit M",
+          "points": [
+            {
+              "x": "2019",
+              "value": 75
+            },
+            {
+              "x": "2020",
+              "value": 81
+            },
+            {
+              "x": "2021",
+              "value": 94
+            }
+          ]
+        },
+        {
+          "name": "Unit N",
+          "points": [
+            {
+              "x": "2019",
+              "value": 35
+            },
+            {
+              "x": "2020",
+              "value": 39
+            },
+            {
+              "x": "2021",
+              "value": 21
+            }
+          ]
+        },
+        {
+          "name": "Unit O",
+          "points": [
+            {
+              "x": "2019",
+              "value": 30
+            },
+            {
+              "x": "2020",
+              "value": 25
+            },
+            {
+              "x": "2021",
+              "value": 48
+            }
+          ]
+        },
+        {
+          "name": "Unit P",
+          "points": [
+            {
+              "x": "2019",
+              "value": 30
+            },
+            {
+              "x": "2020",
+              "value": 53
+            },
+            {
+              "x": "2021",
+              "value": 59
+            }
+          ]
+        }
+      ],
+      "unreadable": null
+    }
+  },
+  "previous": {
+    "model": "claude-fable-5-1",
+    "captured": "18:43",
+    "reading": {
+      "title": "Earshot chart 2",
+      "kind": "panel grid",
+      "unit": "Satisfaction score (0 to 100)",
+      "y_scale": "linear",
+      "x": [
+        "2019",
+        "2020",
+        "2021"
+      ],
+      "series": [
+        {
+          "name": "Unit A",
+          "points": [
+            {
+              "x": "2019",
+              "value": 57
+            },
+            {
+              "x": "2020",
+              "value": 60
+            },
+            {
+              "x": "2021",
+              "value": 63
+            }
+          ]
+        },
+        {
+          "name": "Unit B",
+          "points": [
+            {
+              "x": "2019",
+              "value": 81
+            },
+            {
+              "x": "2020",
+              "value": 82
+            },
+            {
+              "x": "2021",
+              "value": 94
+            }
+          ]
+        },
+        {
+          "name": "Unit C",
+          "points": [
+            {
+              "x": "2019",
+              "value": 69
+            },
+            {
+              "x": "2020",
+              "value": 72
+            },
+            {
+              "x": "2021",
+              "value": 52
+            }
+          ]
+        },
+        {
+          "name": "Unit D",
+          "points": [
+            {
+              "x": "2019",
+              "value": 83
+            },
+            {
+              "x": "2020",
+              "value": 92
+            },
+            {
+              "x": "2021",
+              "value": 93
+            }
+          ]
+        },
+        {
+          "name": "Unit E",
+          "points": [
+            {
+              "x": "2019",
+              "value": 81
+            },
+            {
+              "x": "2020",
+              "value": 74
+            },
+            {
+              "x": "2021",
+              "value": 72
+            }
+          ]
+        },
+        {
+          "name": "Unit F",
+          "points": [
+            {
+              "x": "2019",
+              "value": 54
+            },
+            {
+              "x": "2020",
+              "value": 40
+            },
+            {
+              "x": "2021",
+              "value": 21
+            }
+          ]
+        },
+        {
+          "name": "Unit G",
+          "points": [
+            {
+              "x": "2019",
+              "value": 58
+            },
+            {
+              "x": "2020",
+              "value": 79
+            },
+            {
+              "x": "2021",
+              "value": 82
+            }
+          ]
+        },
+        {
+          "name": "Unit H",
+          "points": [
+            {
+              "x": "2019",
+              "value": 79
+            },
+            {
+              "x": "2020",
+              "value": 96
+            },
+            {
+              "x": "2021",
+              "value": 88
+            }
+          ]
+        },
+        {
+          "name": "Unit I",
+          "points": [
+            {
+              "x": "2019",
+              "value": 49
+            },
+            {
+              "x": "2020",
+              "value": 27
+            },
+            {
+              "x": "2021",
+              "value": 33
+            }
+          ]
+        },
+        {
+          "name": "Unit J",
+          "points": [
+            {
+              "x": "2019",
+              "value": 73
+            },
+            {
+              "x": "2020",
+              "value": 92
+            },
+            {
+              "x": "2021",
+              "value": 95
+            }
+          ]
+        },
+        {
+          "name": "Unit K",
+          "points": [
+            {
+              "x": "2019",
+              "value": 84
+            },
+            {
+              "x": "2020",
+              "value": 95
+            },
+            {
+              "x": "2021",
+              "value": 93
+            }
+          ]
+        },
+        {
+          "name": "Unit L",
+          "points": [
+            {
+              "x": "2019",
+              "value": 37
+            },
+            {
+              "x": "2020",
+              "value": 28
+            },
+            {
+              "x": "2021",
+              "value": 47
+            }
+          ]
+        },
+        {
+          "name": "Unit M",
+          "points": [
+            {
+              "x": "2019",
+              "value": 75
+            },
+            {
+              "x": "2020",
+              "value": 82
+            },
+            {
+              "x": "2021",
+              "value": 95
+            }
+          ]
+        },
+        {
+          "name": "Unit N",
+          "points": [
+            {
+              "x": "2019",
+              "value": 36
+            },
+            {
+              "x": "2020",
+              "value": 40
+            },
+            {
+              "x": "2021",
+              "value": 22
+            }
+          ]
+        },
+        {
+          "name": "Unit O",
+          "points": [
+            {
+              "x": "2019",
+              "value": 31
+            },
+            {
+              "x": "2020",
+              "value": 26
+            },
+            {
+              "x": "2021",
+              "value": 48
+            }
+          ]
+        },
+        {
+          "name": "Unit P",
+          "points": [
+            {
+              "x": "2019",
+              "value": 30
+            },
+            {
+              "x": "2020",
+              "value": 53
+            },
+            {
+              "x": "2021",
+              "value": 59
+            }
+          ]
+        }
+      ],
+      "unreadable": null
+    }
+  }
+}

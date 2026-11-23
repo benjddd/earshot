@@ -1,12 +1,13 @@
 {
-  "id": "chart1-clean",
-  "image": "/samples/chart1-clean.png",
-  "is_photo": false,
-  "label": "Sample: Earshot chart 1. Clean image made tonight; claude-fable-5-1 captured 18:27 tonight, same image, same settings.",
-  "source": "BOARD/fallbacks/clean-chart1.fable-5-1.json and clean-chart1.fable-5-2.json (scout)",
+  "id": "photo1",
+  "image": "/samples/photo1.jpg",
+  "is_photo": true,
+  "label": "Sample 2: phone photo of Earshot chart 1, taken tonight from a seat.",
+  "first_series": "",
+  "source": "BOARD/fallbacks/photo1.fable-5-1.json and photo1.fable-5-2.json (scout); image BOARD/proof/photo1.jpg scaled to 2000 px",
   "current": {
     "model": "claude-fable-5-2",
-    "captured": "18:27",
+    "captured": "18:42",
     "reading": {
       "title": "Earshot chart 1",
       "kind": "heatmap",
@@ -28,7 +29,7 @@
           "points": [
             {
               "x": "09:00",
-              "value": 75
+              "value": 77
             },
             {
               "x": "10:00",
@@ -36,11 +37,11 @@
             },
             {
               "x": "11:00",
-              "value": 71
+              "value": 72
             },
             {
               "x": "12:00",
-              "value": 67
+              "value": 68
             },
             {
               "x": "13:00",
@@ -52,11 +53,11 @@
             },
             {
               "x": "15:00",
-              "value": 76
+              "value": 78
             },
             {
               "x": "16:00",
-              "value": 69
+              "value": 70
             }
           ]
         },
@@ -65,23 +66,23 @@
           "points": [
             {
               "x": "09:00",
-              "value": 48
+              "value": 47
             },
             {
               "x": "10:00",
-              "value": 65
+              "value": 66
             },
             {
               "x": "11:00",
-              "value": 60
+              "value": 58
             },
             {
               "x": "12:00",
-              "value": 60
+              "value": 59
             },
             {
               "x": "13:00",
-              "value": 70
+              "value": 72
             },
             {
               "x": "14:00",
@@ -93,7 +94,7 @@
             },
             {
               "x": "16:00",
-              "value": 69
+              "value": 70
             }
           ]
         },
@@ -122,15 +123,15 @@
             },
             {
               "x": "14:00",
-              "value": 62
+              "value": 64
             },
             {
               "x": "15:00",
-              "value": 38
+              "value": 40
             },
             {
               "x": "16:00",
-              "value": 60
+              "value": 62
             }
           ]
         },
@@ -139,7 +140,7 @@
           "points": [
             {
               "x": "09:00",
-              "value": 50
+              "value": 49
             },
             {
               "x": "10:00",
@@ -147,11 +148,11 @@
             },
             {
               "x": "11:00",
-              "value": 34
+              "value": 35
             },
             {
               "x": "12:00",
-              "value": 35
+              "value": 37
             },
             {
               "x": "13:00",
@@ -163,11 +164,11 @@
             },
             {
               "x": "15:00",
-              "value": 35
+              "value": 37
             },
             {
               "x": "16:00",
-              "value": 31
+              "value": 32
             }
           ]
         },
@@ -180,7 +181,7 @@
             },
             {
               "x": "10:00",
-              "value": 66
+              "value": 67
             },
             {
               "x": "11:00",
@@ -196,15 +197,15 @@
             },
             {
               "x": "14:00",
-              "value": 68
+              "value": 69
             },
             {
               "x": "15:00",
-              "value": 67
+              "value": 68
             },
             {
               "x": "16:00",
-              "value": 60
+              "value": 58
             }
           ]
         },
@@ -213,27 +214,27 @@
           "points": [
             {
               "x": "09:00",
-              "value": 67
+              "value": 69
             },
             {
               "x": "10:00",
-              "value": 66
+              "value": 67
             },
             {
               "x": "11:00",
-              "value": 84
+              "value": 88
             },
             {
               "x": "12:00",
-              "value": 81
+              "value": 85
             },
             {
               "x": "13:00",
-              "value": 74
+              "value": 76
             },
             {
               "x": "14:00",
-              "value": 76
+              "value": 78
             },
             {
               "x": "15:00",
@@ -241,7 +242,7 @@
             },
             {
               "x": "16:00",
-              "value": 81
+              "value": 84
             }
           ]
         }
@@ -251,7 +252,7 @@
   },
   "previous": {
     "model": "claude-fable-5-1",
-    "captured": "18:27",
+    "captured": "18:43",
     "reading": {
       "title": "Earshot chart 1",
       "kind": "heatmap",
@@ -273,35 +274,35 @@
           "points": [
             {
               "x": "09:00",
-              "value": 73
+              "value": 78
             },
             {
               "x": "10:00",
-              "value": 67
-            },
-            {
-              "x": "11:00",
               "value": 68
             },
             {
+              "x": "11:00",
+              "value": 75
+            },
+            {
               "x": "12:00",
-              "value": 66
+              "value": 65
             },
             {
               "x": "13:00",
-              "value": 58
+              "value": 55
             },
             {
               "x": "14:00",
-              "value": 58
+              "value": 55
             },
             {
               "x": "15:00",
-              "value": 73
+              "value": 78
             },
             {
               "x": "16:00",
-              "value": 66
+              "value": 68
             }
           ]
         },
@@ -314,31 +315,31 @@
             },
             {
               "x": "10:00",
-              "value": 65
+              "value": 63
             },
             {
               "x": "11:00",
-              "value": 61
+              "value": 58
             },
             {
               "x": "12:00",
-              "value": 62
+              "value": 58
             },
             {
               "x": "13:00",
-              "value": 70
+              "value": 73
             },
             {
               "x": "14:00",
-              "value": 52
-            },
-            {
-              "x": "15:00",
               "value": 48
             },
             {
+              "x": "15:00",
+              "value": 43
+            },
+            {
               "x": "16:00",
-              "value": 66
+              "value": 65
             }
           ]
         },
@@ -351,23 +352,23 @@
             },
             {
               "x": "10:00",
-              "value": 40
+              "value": 38
             },
             {
               "x": "11:00",
-              "value": 47
+              "value": 50
             },
             {
               "x": "12:00",
-              "value": 60
+              "value": 58
             },
             {
               "x": "13:00",
-              "value": 46
+              "value": 50
             },
             {
               "x": "14:00",
-              "value": 63
+              "value": 60
             },
             {
               "x": "15:00",
@@ -388,31 +389,31 @@
             },
             {
               "x": "10:00",
-              "value": 31
+              "value": 32
             },
             {
               "x": "11:00",
-              "value": 35
+              "value": 33
             },
             {
               "x": "12:00",
-              "value": 36
+              "value": 35
             },
             {
               "x": "13:00",
-              "value": 40
-            },
-            {
-              "x": "14:00",
-              "value": 47
-            },
-            {
-              "x": "15:00",
               "value": 37
             },
             {
+              "x": "14:00",
+              "value": 45
+            },
+            {
+              "x": "15:00",
+              "value": 36
+            },
+            {
               "x": "16:00",
-              "value": 31
+              "value": 33
             }
           ]
         },
@@ -425,31 +426,31 @@
             },
             {
               "x": "10:00",
-              "value": 65
+              "value": 63
             },
             {
               "x": "11:00",
-              "value": 48
+              "value": 50
             },
             {
               "x": "12:00",
-              "value": 40
+              "value": 44
             },
             {
               "x": "13:00",
-              "value": 60
+              "value": 55
             },
             {
               "x": "14:00",
-              "value": 60
+              "value": 63
             },
             {
               "x": "15:00",
-              "value": 64
+              "value": 62
             },
             {
               "x": "16:00",
-              "value": 58
+              "value": 57
             }
           ]
         },
@@ -458,15 +459,15 @@
           "points": [
             {
               "x": "09:00",
-              "value": 64
+              "value": 63
             },
             {
               "x": "10:00",
-              "value": 64
+              "value": 63
             },
             {
               "x": "11:00",
-              "value": 84
+              "value": 85
             },
             {
               "x": "12:00",
@@ -474,15 +475,15 @@
             },
             {
               "x": "13:00",
-              "value": 72
+              "value": 78
             },
             {
               "x": "14:00",
-              "value": 72
+              "value": 78
             },
             {
               "x": "15:00",
-              "value": 60
+              "value": 58
             },
             {
               "x": "16:00",

@@ -27,15 +27,21 @@ const SOUND = {
   stepGap: 0.15,             // 9. then a 150 ms gap, then the value spoken
   headlineGap: 0.4,          // 12. headline, 400 ms of silence, then the melody
   speechRate: 1.0,           // 17. speech rate 0.95 to 1.0
-  seriesSlot: 0.3,           // one series alone (trend, both readings): seconds per point
+  seriesSlot: 0.3,           // one series alone: seconds per point, within the limits below
+  seriesMin: 1.2,            // 6. one series lasts at most chartSeconds and never under 1.2 s
 };
 
 // Prepared inputs. The Sample is one record: the image, the stored reading by this model and the stored
 // reading by the previous model. Swapping in a phone photo and its captures is a change to that file only.
+// sample: read live. broken: shown from its cached reading, Run again reads it live.
+// both: the one photographed chart the two-model comparison is keyed to; both readings cached.
 const PREPARED = {
-  sample: { record: '/prepared/sample.json' },
-  broken: { id: 'chart3-patched', src: '/samples/chart3-patched.png', label: 'Built to fail: Earshot chart 3 with a patch drawn over the series. Clean image, not a photo.' },
+  samples: ['/prepared/photo2.json', '/prepared/photo1.json'], // tonight's phone photos, read live; Sample alternates
+  sample: '/prepared/photo2.json',
+  broken: '/prepared/photo5.json',
+  both: '/prepared/photo3.json',
 };
+const LATE_MS = 30000;
 
 const FIND_OUT = 'To find out: supply a sharper image of the same chart without glare, or ask the sender for the data behind it.';
 
@@ -50,12 +56,13 @@ const el = {
   brk: $('btn-break'), camera: $('btn-camera'), play: $('btn-play'), both: $('btn-both'), verify: $('btn-verify'),
   again: $('btn-again'), prompt: $('btn-prompt'), sheet: $('prompt-sheet'), sheetClose: $('btn-prompt-close'),
   sheetTitle: $('prompt-sheet-title'), sheetText: $('prompt-sheet-text'), keys: $('keys'),
+  what: $('what'), facts: $('facts'), hear: $('hear'), plot: $('plot'), plotCaption: $('plot-caption'), unread: $('unread'),
 };
 
 const state = {
   runId: 0, seq: 0, image: null, label: '', preparedId: null, table: null, seconds: 0, verify: null,
   muted: false, stream: null, timers: [], voices: [], playResolve: null, soundUntil: 0,
-  record: null, old: null, showOld: false,
+  record: null, old: null, showOld: false, cachedAt: null, sampleTurn: 0, insight: null, plot: null,
 };
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -191,10 +198,9 @@ const alive = (seq) => seq === state.seq;
 
 // One continuous voice that glides from point to point. parts: [{ si, values }], one per series.
 // A missing value is a short silence. 600 ms of silence between two series.
-function glide(parts, slot, old = false) {
+function glide(parts, slot, old = false, scale = scaleNow()) {
   stopSound();
   const ctx = audio();
-  const scale = scaleNow();
   return new Promise((resolve) => {
     state.playResolve = resolve;
     const start = ctx ? ctx.currentTime + 0.05 : 0;
@@ -209,6 +215,7 @@ function glide(parts, slot, old = false) {
           clearSounding();
           const c = cellAt(part.si, pi);
           if (c) c.classList.add('sounding', ...(old ? ['sounding-old'] : []));
+          moveMarker(part.si, pi, old); // the marker on the redrawn chart moves as the melody plays
           if (pi === 0 && part.label) el.status.textContent = part.label;
         }, (base + pi * slot) * 1000 + 50));
       });
@@ -245,16 +252,24 @@ function glide(parts, slot, old = false) {
   });
 }
 
-// The whole chart, in 3 to 4 seconds of tone whatever the number of points.
-function playChart() {
-  const t = state.table;
-  if (!t || !t.count) return Promise.resolve();
-  const points = t.count + t.missing;
-  const slot = SOUND.chartSeconds / points;
-  const parts = t.series.map((s, si) => ({
-    si, values: s.points.map((p) => p.value), label: `Playing series ${si + 1} of ${t.series.length}: ${s.name}.`,
-  }));
-  return glide(parts, slot);
+// One series: at most 3.6 s, shorter for few points, never under 1.2 s.
+function playSeries(si, values = null, old = false, scale = scaleNow(), label = '') {
+  const s = state.table.series[si];
+  const vals = values || s.points.map((p) => p.value);
+  if (!state.plot || state.plot.active !== si) drawPlot(si);
+  const seconds = Math.min(SOUND.chartSeconds, Math.max(SOUND.seriesMin, vals.length * SOUND.seriesSlot));
+  return glide([{ si, values: vals, label: label || `Playing ${s.name}.` }], seconds / vals.length, old, scale);
+}
+
+// The series in focus: the one holding the table's tab stop; the first by default.
+function currentSeries() {
+  const c = el.tBody.querySelector('.cell[tabindex="0"]');
+  return c ? Number(c.dataset.s) : 0;
+}
+
+function seriesWord(n) {
+  const panel = /panel/i.test(state.table.kind);
+  return panel ? (n === 1 ? 'panel' : 'panels') : 'series';
 }
 
 // Stepping: one soft note of about 200 ms.
@@ -329,19 +344,59 @@ async function supply(source, label, preparedId = null) {
   run();
 }
 
-async function supplyPrepared(name) {
-  let p = PREPARED[name];
+const PREPARED_FAIL = ['Not read: the prepared image did not load. Nothing is shown. Press the button again.', 'Not read: the prepared image did not load. Press the button again.'];
+
+// Sample: the prepared photo goes through the live path, like any other image.
+async function supplySample() {
   try {
-    if (p.record) {
-      const rec = await (await fetch(p.record)).json();
-      state.record = rec;
-      p = { id: rec.id, src: rec.image, label: rec.label };
-    }
-    const blob = await (await fetch(p.src)).blob();
-    await supply(blob, p.label, p.id);
+    const url = PREPARED.samples[state.sampleTurn % PREPARED.samples.length];
+    state.sampleTurn += 1;
+    const rec = await (await fetch(url)).json();
+    const blob = await (await fetch(rec.image)).blob();
+    state.record = null; // no cached reading stands in for a Sample
+    await supply(blob, `${rec.label} Read live.`, rec.id);
   } catch {
-    fail('Not read: the prepared image did not load. Nothing is shown. Press the button again.', 'Not read: the prepared image did not load. Press the button again.');
+    fail(...PREPARED_FAIL);
   }
+}
+
+// Break it: shown from its cached reading, labelled; Run again reads it live.
+async function supplyBroken() {
+  try {
+    const rec = await (await fetch(PREPARED.broken)).json();
+    await showCached(rec);
+  } catch {
+    fail(...PREPARED_FAIL);
+  }
+}
+
+// A stored reading of a prepared photo, captured earlier tonight and labelled so. No model call.
+async function showCached(rec, quiet = false) {
+  state.runId += 1; // abandons a live call still running
+  stopCamera();
+  resetResult();
+  state.record = rec;
+  state.preparedId = rec.id;
+  state.cachedAt = rec.current.captured;
+  state.seconds = 0;
+  state.image = null;
+  state.label = `${rec.label} Read live.`;
+  el.again.disabled = true;
+  el.img.src = rec.image;
+  el.img.hidden = false;
+  el.img.alt = 'The chart photo. Its values are in the table.';
+  el.caption.textContent = `${rec.label} Reading cached ${rec.current.captured} tonight. Run again reads it live.`;
+  el.figure.hidden = false;
+  const id = rec.id;
+  fetch(rec.image).then((r) => r.blob()).then(toJpegBase64).then((dataUrl) => {
+    if (state.preparedId === id && state.cachedAt) { state.image = dataUrl; el.again.disabled = false; }
+  }).catch(() => {});
+  renderReading(rec.current.reading);
+  if (!quiet) await announceReading();
+}
+
+function cachedFor() {
+  return Boolean(state.record && state.preparedId === state.record.id && state.record.current);
 }
 
 function firstImage(list) {
@@ -405,12 +460,19 @@ function resetResult() {
   el.statusVerify.hidden = true;
   el.statusVerify.textContent = '';
   el.play.disabled = true;
-  el.both.disabled = true;
   el.verify.disabled = true;
   el.statement.className = 'statement';
   el.statement2.hidden = true;
   el.statement2.textContent = '';
-  el.tableWrap.parentElement.classList.remove('comparing');
+  el.tableWrap.classList.remove('comparing');
+  el.what.hidden = true;
+  el.facts.hidden = true;
+  el.facts.textContent = '';
+  el.hear.hidden = true;
+  el.unread.hidden = true;
+  el.unread.textContent = '';
+  state.insight = null;
+  state.plot = null;
 }
 
 function fail(shown, spoken) {
@@ -421,23 +483,30 @@ function fail(shown, spoken) {
   say(spoken);
 }
 
-// The comparison exists only for the exact prepared input, never by title.
-function canCompare() {
-  return Boolean(state.record && state.preparedId === state.record.id && state.record.previous && state.table && state.table.count);
-}
-
 async function run() {
   if (!state.image) return;
   const runId = ++state.runId;
   resetResult();
+  state.cachedAt = null;
+  el.caption.textContent = state.label;
   el.again.disabled = true;
   el.statement.textContent = 'Reading';
   const started = performance.now();
-  const tick = () => { el.status.textContent = `Reading the chart. ${Math.round((performance.now() - started) / 1000)} s so far.`; };
+  let lateText = '';
+  const tick = () => { el.status.textContent = `Reading the chart. ${Math.round((performance.now() - started) / 1000)} s so far.${lateText ? ` ${lateText}` : ''}`; };
   tick();
   const ticker = setInterval(tick, 1000);
   announce('Reading the chart.');
   sign('start');
+  // A live call past 30 s says so in one sentence, and offers the cached reading where one exists.
+  const late = setTimeout(() => {
+    if (runId !== state.runId) return;
+    lateText = cachedFor()
+      ? `This live reading has passed 30 seconds; press C for the cached reading from ${state.record.current.captured} tonight.`
+      : 'This live reading has passed 30 seconds.';
+    tick();
+    say(lateText);
+  }, LATE_MS);
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), CALL_TIMEOUT_MS);
@@ -454,6 +523,7 @@ async function run() {
     payload = null;
   }
   clearTimeout(timeout);
+  clearTimeout(late);
   clearInterval(ticker);
   if (runId !== state.runId) return;
 
@@ -462,52 +532,265 @@ async function run() {
     return;
   }
   state.seconds = (performance.now() - started) / 1000;
-  const table = normalise(payload.reading);
-  state.table = table;
   el.again.disabled = false;
-  const seq = act();
+  renderReading(payload.reading);
+  await announceReading();
+}
 
-  if (!table.count) {
-    await sign('ready');
-    if (!alive(seq)) return;
-    showNotKnown(table.unreadable || 'no value could be read from this image');
-    return;
-  }
-
+// A reading (live or cached) onto the sheet: the table, the headline, the status line. No sound here.
+function renderReading(reading) {
+  const table = normalise(reading);
+  state.table = table;
+  if (!table.count) return;
   renderTable(table);
   el.play.disabled = false;
   el.verify.disabled = false;
-  el.both.disabled = !canCompare();
-  el.statement.textContent = table.missing ? `${table.missing} not known` : `${table.count} values`;
-  if (table.missing) {
-    el.statement.className = 'statement statement-unknown';
-    el.claim.hidden = false;
-    el.claim.textContent = '';
-    el.claim.append(partialNotKnown());
-  }
-  showStatus();
 
-  // Ready sign, one headline, 400 ms of silence, the melody, then one closing sentence. Never speech over a tone.
+  // What the chart says, by plain code from the table: one line, one headline, three key facts.
+  const insight = { what: whatText(table), finding: finding(table), facts: keyFacts(table), unread: unreadText(table) };
+  state.insight = insight;
+  el.what.textContent = insight.what;
+  el.what.hidden = false;
+  el.statement.textContent = insight.finding.text;
+  el.statement.className = 'statement headline';
+  el.facts.textContent = '';
+  for (const f of insight.facts) {
+    const li = document.createElement('li');
+    li.textContent = f;
+    el.facts.append(li);
+  }
+  el.facts.hidden = false;
+  if (insight.unread) {
+    el.unread.textContent = insight.unread;
+    el.unread.hidden = false;
+  }
+  // The headline's series is the one in focus: Play starts there; Up and Down choose another.
+  const start = cellAt(insight.finding.si, 0) || el.tBody.querySelector('.cell');
+  if (start) {
+    el.tBody.querySelectorAll('.cell[tabindex="0"]').forEach((c) => { c.tabIndex = -1; });
+    start.tabIndex = 0;
+  }
+  el.hear.hidden = false;
+  drawPlot(insight.finding.si);
+  showStatus();
+}
+
+// Spoken, in this order and nothing more unless asked: line 1, the headline, a pause, the melody.
+// Each step waits for the one before: never speech over a tone. Unread values are then named once.
+async function announceReading() {
+  const t = state.table;
+  const seq = act();
   await sign('ready');
   if (!alive(seq)) return;
-  const secs = `${state.seconds.toFixed(1)} seconds`;
-  await say(table.missing
-    ? `${table.count} values read, ${table.missing} not known: ${table.reason}.`
-    : `${MODEL_ID} read ${table.count} values in ${secs}.`);
+  if (!t.count) {
+    showNotKnown(t.unreadable || 'no value could be read from this image');
+    return;
+  }
+  const i = state.insight;
+  await say(`${state.cachedAt ? 'Cached reading. ' : ''}${i.what} ${i.finding.text}`);
   if (!alive(seq)) return;
   await wait(SOUND.headlineGap * 1000);
   if (!alive(seq)) return;
-  await playChart();
+  await playSeries(i.finding.si);
   if (!alive(seq)) return; // the user took over
   showStatus();
-  if (table.missing) say(FIND_OUT);
-  else showSummary();
+  if (i.unread) say(i.unread);
+}
+
+// ---------- what the chart says: plain code on the table the call returned ----------
+
+const known = (s) => s.points.filter((p) => p.value !== null);
+const shortUnit = (t) => (t.unit && t.unit.length <= 8 ? ` ${t.unit}` : '');
+
+function whatText(t) {
+  const n = t.series.length;
+  const xr = t.xs.length > 1 ? `${t.xs[0]} to ${t.xs[t.xs.length - 1]}` : (t.xs[0] || '');
+  return `${cap(t.kind)}${t.title ? `: ${t.title}` : ''}. ${n} ${seriesWord(n)}, ${xr}${t.unit ? `, in ${t.unit}` : ''}.`;
+}
+
+// The single most notable finding, in this order: an overtake; the fastest growth; the largest value.
+function finding(t) {
+  const kind = t.kind.toLowerCase();
+  const ordered = !/heat/.test(kind); // a heatmap row is not a course over time
+  const lineLike = ordered && !/panel|bar/.test(kind);
+  const tol = (v) => Math.max(VERIFY_TOLERANCE.abs, VERIFY_TOLERANCE.rel * Math.abs(v));
+  if (lineLike && t.series.length > 1) {
+    let best = null;
+    t.series.forEach((A, a) => t.series.forEach((B, b) => {
+      if (a === b) return;
+      for (let i = 1; i < Math.min(A.points.length, B.points.length); i += 1) {
+        const a0 = A.points[i - 1].value, a1 = A.points[i].value, b0 = B.points[i - 1].value, b1 = B.points[i].value;
+        if ([a0, a1, b0, b1].some((v) => v === null)) continue;
+        if (b0 - a0 > tol(b0) && a1 - b1 > tol(b1) && (!best || i > best.i || (i === best.i && a1 - b1 > best.gap))) {
+          best = { i, gap: a1 - b1, a, text: `${A.name} overtakes ${B.name} in ${A.points[i].x}.` };
+        }
+      }
+    }));
+    if (best) return { text: best.text, si: best.a };
+  }
+  if (ordered) {
+    let best = null;
+    t.series.forEach((s, si) => {
+      const k = known(s);
+      if (k.length < 2 || k[0].value <= 0) return;
+      const mult = k[k.length - 1].value / k[0].value;
+      if (!best || mult > best.mult) best = { mult, si, s, first: k[0], last: k[k.length - 1] };
+    });
+    if (best && best.mult >= 1.5) {
+      const by = best.mult >= 2 ? `${fmt(Math.round(best.mult * 10) / 10)} times` : `up ${Math.round((best.mult - 1) * 100)}%`;
+      return { si: best.si, text: `${best.s.name} grew fastest: ${by}, from ${fmt(best.first.value)} in ${best.first.x} to ${fmt(best.last.value)} in ${best.last.x}.` };
+    }
+  }
+  let hi = null;
+  t.series.forEach((s, si) => s.points.forEach((p) => {
+    if (p.value !== null && (!hi || p.value > hi.p.value)) hi = { p, s, si };
+  }));
+  return { si: hi.si, text: `Highest value: ${fmt(hi.p.value)}${shortUnit(t)}, ${hi.s.name} at ${hi.p.x}.` };
+}
+
+// The trend of one series in two or three words.
+function trendWord(s) {
+  const k = known(s);
+  if (k.length < 2) return 'not read';
+  const first = k[0].value, last = k[k.length - 1].value;
+  const hi = k.reduce((a, p) => (p.value > a.value ? p : a));
+  const lo = k.reduce((a, p) => (p.value < a.value ? p : a));
+  const range = hi.value - lo.value;
+  if (range <= Math.max(VERIFY_TOLERANCE.abs, VERIFY_TOLERANCE.rel * Math.abs(hi.value))) return 'flat';
+  if (hi !== k[0] && hi !== k[k.length - 1] && hi.value - Math.max(first, last) > 0.25 * range) return `peak in ${hi.x}`;
+  if (lo !== k[0] && lo !== k[k.length - 1] && Math.min(first, last) - lo.value > 0.25 * range) return `dip in ${lo.x}`;
+  return last > first ? 'rising' : last < first ? 'falling' : 'flat';
+}
+
+// Three key facts: highest and lowest with place; the biggest change between neighbours; each trend.
+function keyFacts(t) {
+  let hi = null, lo = null, step = null;
+  t.series.forEach((s) => {
+    s.points.forEach((p, i) => {
+      if (p.value === null) return;
+      if (!hi || p.value > hi.p.value) hi = { p, s };
+      if (!lo || p.value < lo.p.value) lo = { p, s };
+      const q = s.points[i + 1];
+      if (q && q.value !== null && (!step || Math.abs(q.value - p.value) > Math.abs(step.d))) step = { d: q.value - p.value, s, p, q };
+    });
+  });
+  const groups = new Map();
+  t.series.forEach((s) => {
+    const w = trendWord(s);
+    if (!groups.has(w)) groups.set(w, []);
+    groups.get(w).push(s.name);
+  });
+  const facts = [`Highest ${fmt(hi.p.value)} at ${hi.s.name}, ${hi.p.x}; lowest ${fmt(lo.p.value)} at ${lo.s.name}, ${lo.p.x}.`];
+  if (step) facts.push(`Biggest step: ${step.s.name}, ${step.p.x} to ${step.q.x}, ${step.d >= 0 ? 'up' : 'down'} ${fmt(Math.abs(step.d))}.`);
+  facts.push(`${[...groups].map(([w, names]) => `${cap(w)}: ${names.join(', ')}`).join('. ')}.`);
+  return facts;
+}
+
+// Unread values as one plain sentence saying which. Empty when everything was read.
+function unreadText(t) {
+  if (!t.missing) return '';
+  const parts = [];
+  t.series.forEach((s) => {
+    let i = 0;
+    while (i < s.points.length) {
+      if (s.points[i].value !== null) { i += 1; continue; }
+      let j = i;
+      while (j + 1 < s.points.length && s.points[j + 1].value === null) j += 1;
+      parts.push(j > i ? `${s.name} ${s.points[i].x} to ${s.points[j].x}` : `${s.name} ${s.points[i].x}`);
+      i = j + 1;
+    }
+  });
+  const which = parts.length > 4 ? `${parts.slice(0, 4).join('; ')}; and ${parts.length - 4} more` : parts.join('; ');
+  const reason = tidy(t.reason);
+  return `Not read: ${which}, ${reason.charAt(0).toLowerCase()}${reason.slice(1)}. Not guessed.`;
+}
+
+// ---------- hear it: the chart redrawn from the values read, with a marker that moves with the melody ----------
+
+const SVG_NS = 'http://www.w3.org/2000/svg';
+function svgEl(tag, attrs, text) {
+  const n = document.createElementNS(SVG_NS, tag);
+  for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v);
+  if (text !== undefined) n.textContent = text;
+  return n;
+}
+
+function drawPlot(active) {
+  const t = state.table;
+  if (!t || !t.count) return;
+  const olds = state.showOld && state.old ? state.old : null;
+  // With both readings showing, the plot zooms to this series across both readings, like the pitch map.
+  const vals = (olds
+    ? t.series[active].points.map((p) => p.value).concat(olds[active])
+    : t.series.flatMap((s) => s.points.map((p) => p.value))).filter((v) => v !== null);
+  const min = Math.min(...vals), max = Math.max(...vals);
+  const log = t.log && min > 0;
+  const W = 720, H = 340, L = 84, R = 34, T = 16, B = 40;
+  const x = (i) => (t.xs.length > 1 ? L + ((W - L - R) * i) / (t.xs.length - 1) : (L + W - R) / 2);
+  const frac = (v) => (max > min ? (log ? (Math.log(v) - Math.log(min)) / (Math.log(max) - Math.log(min)) : (v - min) / (max - min)) : 0.5);
+  const y = (v) => H - B - frac(v) * (H - T - B);
+  const xi = (p) => t.xs.indexOf(p.x);
+  const path = (points) => {
+    let d = '', pen = false;
+    for (const [px, v] of points) {
+      if (v === null) { pen = false; continue; }
+      d += `${pen ? 'L' : 'M'}${x(px).toFixed(1)} ${y(v).toFixed(1)} `;
+      pen = true;
+    }
+    return d.trim();
+  };
+  const g = el.plot;
+  g.textContent = '';
+  const mid = log ? Math.sqrt(min * max) : (min + max) / 2;
+  for (const v of max > min ? [min, mid, max] : [min]) {
+    g.append(svgEl('line', { x1: L, x2: W - R, y1: y(v), y2: y(v), class: 'plot-grid' }));
+    g.append(svgEl('text', { x: L - 8, y: y(v) + 7, 'text-anchor': 'end', class: 'plot-tick' }, fmt(Math.round(v * 10) / 10)));
+  }
+  const every = t.xs.length > 9 ? Math.ceil(t.xs.length / 6) : 1;
+  t.xs.forEach((label, i) => {
+    if (i % every === 0 || i === t.xs.length - 1) g.append(svgEl('text', { x: x(i), y: H - 10, 'text-anchor': 'middle', class: 'plot-tick' }, label));
+  });
+  if (!olds) {
+    t.series.forEach((s, si) => {
+      if (si !== active) g.append(svgEl('path', { d: path(s.points.map((p) => [xi(p), p.value])), class: 'plot-other' }));
+    });
+  }
+  const s = t.series[active];
+  if (olds) g.append(svgEl('path', { d: path(s.points.map((p, pi) => [xi(p), olds[active][pi]])), class: 'plot-old' }));
+  g.append(svgEl('path', { d: path(s.points.map((p) => [xi(p), p.value])), class: 'plot-active' }));
+  s.points.forEach((p) => {
+    if (p.value !== null) g.append(svgEl('circle', { cx: x(xi(p)), cy: y(p.value), r: 5, class: 'plot-dot' }));
+  });
+  g.append(svgEl('circle', { id: 'plot-marker', cx: 0, cy: 0, r: 12, class: 'plot-marker', visibility: 'hidden' }));
+  state.plot = { active, x, y, xi };
+  const prev = olds && state.record ? state.record.previous : null;
+  el.plotCaption.textContent = `Redrawn from the values read${log ? ', log scale' : ''}. Bold line: ${s.name}.${prev ? ` Solid: ${MODEL_ID}. Dashed: ${prev.model}, captured ${prev.captured} tonight.` : ''} The ring moves with the melody.`;
+}
+
+function moveMarker(si, pi, old) {
+  const m = document.getElementById('plot-marker');
+  if (!m || !state.plot || state.plot.active !== si) return;
+  const p = state.table.series[si].points[pi];
+  const v = old && state.old ? state.old[si][pi] : p.value;
+  if (v === null) { m.setAttribute('visibility', 'hidden'); return; }
+  m.setAttribute('cx', state.plot.x(state.plot.xi(p)));
+  m.setAttribute('cy', state.plot.y(v));
+  m.setAttribute('visibility', 'visible');
+}
+
+// K: the key facts, spoken on request. They are on screen all along.
+function speakFacts() {
+  if (!state.insight) return;
+  act();
+  say(state.insight.facts.join(' '));
 }
 
 function statusText() {
   const t = state.table;
-  const base = `${MODEL_ID} read ${t.count} values in ${state.seconds.toFixed(1)} s.`;
-  return t.missing ? `${base} ${t.missing} not known.` : base;
+  const base = state.cachedAt
+    ? `${MODEL_ID} read ${t.count} values. Cached ${state.cachedAt} tonight, not live.`
+    : `${MODEL_ID} read ${t.count} values in ${state.seconds.toFixed(1)} s.`;
+  return t.missing ? `${base} ${t.missing} not read.` : base;
 }
 
 function showStatus() {
@@ -551,7 +834,9 @@ function showNotKnown(reason) {
   const text = notKnownText(reason);
   el.statement.textContent = 'Not known';
   el.statement.className = 'statement statement-unknown';
-  el.status.textContent = `${MODEL_ID} read 0 values in ${state.seconds.toFixed(1)} s.`;
+  el.status.textContent = state.cachedAt
+    ? `${MODEL_ID} read 0 values. Cached ${state.cachedAt} tonight, not live.`
+    : `${MODEL_ID} read 0 values in ${state.seconds.toFixed(1)} s.`;
   el.claim.hidden = false;
   el.claim.textContent = '';
   el.claim.append(para('claim-unknown', text));
@@ -644,7 +929,7 @@ function renderTable(table) {
     el.tBody.append(tr);
   });
   el.tableWrap.hidden = false;
-  el.tableWrap.parentElement.classList.toggle('wide', table.xs.length > 4);
+  el.tableWrap.classList.toggle('wide', table.xs.length > 4);
 }
 
 function span(cls, text) {
@@ -673,8 +958,8 @@ function paintCell(b, p, outcome) {
   line.append(span('old-tag', '5.1'), span('sr-only', ` ${state.record.previous.model} read `));
   const oo = state.verify && state.verify.old && state.verify.old.outcomes[si][pi];
   if (ov === null) line.append(span('unknown-word', 'Not known'));
-  else if (oo && oo.kind === 'match') { line.classList.add('old-match'); line.append(span('tri', ''), span('val', fmt(ov)), span('sr-only', ' Match')); }
-  else if (oo && oo.kind === 'mismatch') { line.classList.add('old-mismatch'); line.append(span('val struck', fmt(ov)), span('block', 'Mismatch')); }
+  else if (oo && oo.kind === 'match') { line.classList.add('old-match'); line.append(span('val', fmt(ov)), span('sr-only', ' Match')); }
+  else if (oo && oo.kind === 'mismatch') { line.classList.add('old-mismatch'); line.append(span('val struck', fmt(ov)), span('sr-only', ' Mismatch')); }
   else line.append(span('val', fmt(ov)));
   b.append(line);
   if (differs(p.value, ov)) {
@@ -685,7 +970,7 @@ function paintCell(b, p, outcome) {
 
 function paintMain(b, p, outcome) {
   if (p.value === null) {
-    b.append(span('unknown-word', 'Not known'), span('sr-only', `: ${pointNotKnown(p).slice(11)}`));
+    b.append(span('unknown-word', 'not read'), span('sr-only', `. ${pointNotKnown(p)}`));
     return;
   }
   if (!outcome) {
@@ -693,8 +978,8 @@ function paintMain(b, p, outcome) {
     return;
   }
   if (outcome.kind === 'match') {
-    b.classList.add('is-match');
-    b.append(span('tri', ''), span('val', fmt(p.value)), span('sr-only', ' Match'));
+    b.classList.add('is-match'); // calm: the value turns ink navy; the word is in the check line and for screen readers
+    b.append(span('val', fmt(p.value)), span('sr-only', ' Match'));
   } else if (outcome.kind === 'mismatch') {
     b.classList.add('is-mismatch');
     b.append(span('val struck', fmt(p.value)), span('rec', fmt(outcome.record)), span('block', `Mismatch ${fmt(Math.abs(outcome.diff))}`));
@@ -765,8 +1050,20 @@ el.tBody.addEventListener('keydown', (e) => {
   b.tabIndex = -1;
   next.tabIndex = 0;
   next.focus();
-  stepTo(ns, np, ns !== si);
+  if (ns !== si) chooseSeries(ns, np); else stepTo(ns, np, false);
 });
+
+// Up and Down choose another series or panel and play it: its name, then its glide.
+async function chooseSeries(si, pi) {
+  const seq = act();
+  const s = state.table.series[si];
+  select(si, pi);
+  showClaim(para('claim-head', s.name), para('', `${s.points.map((p) => `${p.x}: ${fmtOrNot(p.value)}`).join(', ')}.`));
+  await say(`${s.name}.`);
+  if (!alive(seq)) return;
+  await playSeries(si);
+  if (alive(seq)) showStatus();
+}
 
 el.tBody.addEventListener('click', (e) => {
   const b = e.target.closest('.cell');
@@ -860,7 +1157,7 @@ async function trend(si) {
   src.append(mark('derived', 'Derived by plain code from the table.'));
   showClaim(para('claim-head', `Trend, ${s.name}`), para('', text), src);
   announce(text);
-  await glide([{ si, values: s.points.map((p) => p.value), label: `Playing ${s.name}.` }], SOUND.seriesSlot);
+  await playSeries(si);
   if (!alive(seq)) return;
   showStatus();
   speakOnly(text);
@@ -888,12 +1185,30 @@ function showSummary() {
   return say(text);
 }
 
+// P and the Play button: the series in focus, as one glide.
 async function replay() {
   if (!state.table || !state.table.count) return;
   const seq = act();
-  announce('Playing the chart as pitch. Higher value, higher note.');
-  await playChart();
+  const s = state.table.series[currentSeries()];
+  announce(`Playing ${s.name} as pitch. Higher value, higher note.`);
+  await playSeries(currentSeries());
   if (alive(seq)) showStatus();
+}
+
+// A: all series in turn, each name spoken first, 600 ms between them. Escape or Space stops it.
+async function playAll() {
+  const t = state.table;
+  if (!t || !t.count) return;
+  const seq = act();
+  for (let si = 0; si < t.series.length; si += 1) {
+    await say(`${t.series[si].name}.`);
+    if (!alive(seq)) return;
+    await playSeries(si);
+    if (!alive(seq)) return;
+    await wait(SOUND.seriesGap * 1000);
+    if (!alive(seq)) return;
+  }
+  showStatus();
 }
 
 // ---------- both melodies: this model's reading and the previous model's, same input, one pitch map ----------
@@ -911,52 +1226,64 @@ function alignOld() {
   });
 }
 
+// The comparison is keyed to one prepared photo, never to a title: Play both loads that photo itself.
+// Both readings are cached captures of the same photo with the same settings; nothing here is live.
 async function playBoth() {
-  if (!canCompare()) return;
+  let rec;
+  try {
+    rec = await (await fetch(PREPARED.both)).json();
+  } catch {
+    fail(...PREPARED_FAIL);
+    return;
+  }
+  const fresh = state.preparedId !== rec.id || !state.table || !state.cachedAt;
+  if (fresh) await showCached(rec, true);
   const seq = act();
   const t = state.table;
-  const prev = state.record.previous;
+  const prev = rec.previous;
   const prevLabel = `${prev.model}, captured ${prev.captured} tonight`;
+  el.caption.textContent = `${rec.label} Both readings are cached: ${MODEL_ID} captured ${rec.current.captured}, ${prev.model} captured ${prev.captured} tonight, same photo, same settings.`;
   state.old = alignOld();
   state.showOld = true;
   if (state.verify) { // a Verify done before the comparison covered one reading only: clear it
     state.verify = null;
     el.statusVerify.hidden = true;
-    el.statement.className = 'statement';
-    el.statement.textContent = `${t.count} values`;
+    el.statement.className = 'statement headline';
   }
   repaintAll();
-  el.tableWrap.parentElement.classList.add('comparing');
+  el.tableWrap.classList.add('comparing');
 
-  // Which series: the one in focus, or else the one where the two readings are furthest apart.
-  const focused = document.activeElement && document.activeElement.closest ? document.activeElement.closest('.cell') : null;
-  let si = focused ? Number(focused.dataset.s) : -1;
-  if (si < 0) {
-    let worst = -1;
-    t.series.forEach((s, i) => s.points.forEach((p, pi) => {
-      const ov = state.old[i][pi];
-      const gap = p.value === null || ov === null ? 0 : Math.abs(p.value - ov);
-      if (gap > worst) { worst = gap; si = i; }
-    }));
+  // Which series: the one in focus when the photo was already showing; else the record's first series.
+  let si = fresh ? -1 : currentSeries();
+  if (si < 0) si = t.series.findIndex((s) => key(s.name) === key(rec.first_series || ''));
+  if (si < 0) si = 0;
+  const first = cellAt(si, 0);
+  if (first && currentSeries() !== si) {
+    el.tBody.querySelectorAll('.cell[tabindex="0"]').forEach((c) => { c.tabIndex = -1; });
+    first.tabIndex = 0;
   }
   const s = t.series[si];
+  drawPlot(si);
   const news = s.points.map((p) => p.value);
   const olds = state.old[si];
   let total = 0;
   t.series.forEach((ser, i) => ser.points.forEach((p, pi) => { if (differs(p.value, state.old[i][pi])) total += 1; }));
   const at = s.points.filter((p, pi) => differs(p.value, olds[pi]));
-  const detail = s.points.map((p, pi) => (differs(p.value, olds[pi]) ? `${p.x}: ${fmtOrNot(p.value)} against ${fmtOrNot(olds[pi])}` : null)).filter(Boolean);
-  const closing = at.length
-    ? `In ${s.name} the two readings differ at ${at.map((p) => p.x).join(' and ')}.`
-    : `In ${s.name} the two readings do not differ by more than the tolerance.`;
+  const closing = at.length === 0 ? `In ${s.name} the two readings do not differ by more than the tolerance.`
+    : at.length <= 3 ? `In ${s.name} the two readings differ at ${at.map((p) => p.x).join(' and ')}.`
+      : `In ${s.name} the two readings differ at ${at.length} of ${s.points.length} points.`;
   const list = (vals) => vals.map(fmtOrNot).join(', ');
+
+  // The pitch map for this series: its range across BOTH readings, onto 220 to 880 Hz. Printed.
+  const both = [...news, ...olds].filter((v) => v !== null);
+  const scale = { min: Math.min(...both), max: Math.max(...both), log: t.log };
 
   showClaim(
     para('claim-head', `Both readings, ${s.name}`),
-    para('', `${MODEL_ID}, live: ${list(news)}.`),
-    para('', `${prevLabel}, same image, same settings: ${list(olds)}.`),
-    para('claim-diff', `${closing}${detail.length ? ` ${detail.join('; ')}.` : ''} ${total} of ${t.count + t.missing} points differ in the whole chart, marked in the table.`),
-    para('mark-line', `One pitch map for both. A point is marked when the readings are more than ${VERIFY_TOLERANCE.abs} units or ${VERIFY_TOLERANCE.rel * 100}% apart. Verify shows which reading matches the record.`),
+    para('', `${MODEL_ID}, cached ${rec.current.captured} tonight: ${list(news)}.`),
+    para('', `${prevLabel}, same photo, same settings: ${list(olds)}.`),
+    para('claim-diff', `${closing} ${total} of ${t.count + t.missing} points differ in the whole chart, marked in the table.`),
+    para('mark-line', `Pitch scale: ${fmt(scale.min)} to ${fmt(scale.max)}${t.unit ? ` ${t.unit}` : ''}, one map for both readings. A point is marked when the readings are more than ${VERIFY_TOLERANCE.abs} units or ${VERIFY_TOLERANCE.rel * 100}% apart. Verify shows which reading matches the record.`),
   );
 
   // One headline, 400 ms, two glides 600 ms apart on one pitch map, then one closing sentence.
@@ -964,11 +1291,11 @@ async function playBoth() {
   if (!alive(seq)) return;
   await wait(SOUND.headlineGap * 1000);
   if (!alive(seq)) return;
-  await glide([{ si, values: news, label: `Playing ${s.name} as read by ${MODEL_ID}.` }], SOUND.seriesSlot, false);
+  await playSeries(si, news, false, scale, `Playing ${s.name} as read by ${MODEL_ID}, cached ${rec.current.captured} tonight.`);
   if (!alive(seq)) return;
   await wait(SOUND.seriesGap * 1000);
   if (!alive(seq)) return;
-  await glide([{ si, values: olds, label: `Playing ${s.name} as read by ${prevLabel}.` }], SOUND.seriesSlot, true);
+  await playSeries(si, olds, true, scale, `Playing ${s.name} as read by ${prevLabel}.`);
   if (!alive(seq)) return;
   showStatus();
   say(closing);
@@ -1004,10 +1331,8 @@ async function verify() {
     state.verify = null;
     const text = 'Not known: no withheld data for this image.';
     el.statusVerify.hidden = false;
-    el.statusVerify.className = 'status status-verify';
+    el.statusVerify.className = 'check check-bad';
     el.statusVerify.textContent = text;
-    el.statement.textContent = 'Not known';
-    el.statement.className = 'statement statement-unknown';
     say(text);
     return;
   }
@@ -1060,35 +1385,41 @@ async function verify() {
   }));
 
   const all = t.count + t.missing;
-  const line = (c) => `${c.match} match, ${c.mismatch} mismatch, ${c.unknown} not known.`;
-  const headline = (c) => (c.mismatch ? `${c.mismatch} mismatch` : c.unknown ? `${c.unknown} not known` : `${c.match} match`);
-  // One spoken sentence. "Verified" is Ben's wording for this sentence.
-  const short = (c) => `${c.match} of ${all} match${c.mismatch ? `, ${c.mismatch} mismatch` : ''}${c.unknown ? `, ${c.unknown} not known` : ''}`;
+  // The check line: small and quiet. One sentence, a green mark and the word when everything matches.
+  const short = (c) => `${c.match} of ${all} match${c.mismatch ? `, ${c.mismatch} mismatch` : ''}${c.unknown ? `, ${c.unknown} not read` : ''}`;
+  const checkLine = (text, c) => {
+    const good = !c.mismatch;
+    const row = span(`check-row ${good ? 'check-good' : 'check-bad'}`, '');
+    if (good) row.append(span('tri', ''));
+    row.append(document.createTextNode(text));
+    return row;
+  };
   el.statusVerify.hidden = false;
-  el.statusVerify.className = `status status-verify ${counts.mismatch ? 'has-mismatch' : counts.unknown ? 'has-unknown' : 'all-match'}`;
+  el.statusVerify.className = 'check';
   el.statusVerify.textContent = '';
-  if (!counts.mismatch && !counts.unknown) el.statusVerify.append(span('tri', ''));
-  el.statement.className = `statement ${counts.mismatch ? 'statement-mismatch' : counts.unknown ? 'statement-unknown' : 'statement-match'}`;
-  el.statement.textContent = headline(counts);
+  if (!counts.mismatch) el.statement.className = 'statement headline statement-match'; // the finding has joined the record
+  const small = span('check-small', `Record: ${recordName}. Tolerance: ${TOLERANCE_TEXT}.`);
   if (!old) {
-    el.statusVerify.append(document.createTextNode(`${line(counts)} Record: ${recordName}. Tolerance: ${TOLERANCE_TEXT}.`));
+    el.statusVerify.append(checkLine(`Verified: ${short(counts)}.`, counts), small);
     say(`Verified: ${short(counts)}.`);
     return;
   }
-  // Both readings against the same record: which one matches.
+  // Both readings against the same record: which one matches. Side by side, one line each.
   const prev = state.record.previous;
   const oc = old.counts;
-  el.statusVerify.append(document.createTextNode(`${MODEL_ID}: ${line(counts)} ${prev.model}, captured ${prev.captured} tonight: ${line(oc)} Record: ${recordName}. Tolerance: ${TOLERANCE_TEXT}.`));
-  el.statement.textContent = `${headline(counts)}`;
-  el.statement2.hidden = false;
-  el.statement2.className = `statement2 ${oc.mismatch || oc.unknown ? '' : 'statement-match'}`;
-  el.statement2.textContent = `${prev.model}: ${headline(oc)}`;
+  el.statusVerify.append(
+    checkLine(`${MODEL_ID}, cached ${state.record.current.captured} tonight: ${counts.match} of ${all} match.`, counts),
+    checkLine(`${prev.model}, captured ${prev.captured} tonight: ${oc.match} of ${all} match.`, oc),
+    small,
+  );
+  drawPlot(state.plot ? state.plot.active : 0);
+  const some = (m) => `${m.slice(0, 2).join('; ')}${m.length > 2 ? `; and ${m.length - 2} more, marked in the table` : ''}`;
   const nodes = [para('claim-head', 'Verify, both readings')];
-  if (mine.misses.length) nodes.push(para('claim-diff', `${MODEL_ID} mismatch at ${mine.misses.join('; ')}.`));
-  if (old.misses.length) nodes.push(para('claim-diff', `${prev.model} mismatch at ${old.misses.join('; ')}.`));
+  if (mine.misses.length) nodes.push(para('claim-diff', `${MODEL_ID} mismatch at ${some(mine.misses)}.`));
+  if (old.misses.length) nodes.push(para('claim-diff', `${prev.model} mismatch at ${some(old.misses)}.`));
   if (!mine.misses.length && !old.misses.length) nodes.push(para('', 'No mismatch in either reading.'));
   showClaim(...nodes);
-  say(`Verified: ${MODEL_ID}, ${short(counts)}; ${prev.model}, ${short(oc)}.`);
+  say(`Verified: ${MODEL_ID}, ${counts.match} of ${all} match; ${prev.model}, ${oc.match} of ${all} match.`);
 }
 
 // ---------- Prompt sheet ----------
@@ -1116,8 +1447,8 @@ el.file.addEventListener('change', () => {
   if (f) supply(f, 'Image chosen from a file.');
   el.file.value = '';
 });
-el.sample.addEventListener('click', () => supplyPrepared('sample'));
-el.brk.addEventListener('click', () => supplyPrepared('broken'));
+el.sample.addEventListener('click', supplySample);
+el.brk.addEventListener('click', supplyBroken);
 el.camera.addEventListener('click', toggleCamera);
 el.again.addEventListener('click', run);
 el.verify.addEventListener('click', verify);
@@ -1158,11 +1489,14 @@ document.addEventListener('keydown', (e) => {
   if (!el.sheet.hidden) return;
   const k = e.key.toLowerCase();
   if (k === 'p' && !el.play.disabled) { e.preventDefault(); replay(); }
+  if (k === 'a' && !el.play.disabled) { e.preventDefault(); playAll(); }
+  if (k === 'c' && cachedFor() && !state.cachedAt) { e.preventDefault(); showCached(state.record); }
+  if (k === 'k' && state.insight) { e.preventDefault(); speakFacts(); }
   if (k === 'm') {
     e.preventDefault();
     state.muted = !state.muted;
     if (state.muted) stopSpeech();
-    el.keys.textContent = `Keys: P plays the chart again. M turns the built-in voice ${state.muted ? 'on' : 'off'}. Esc or Space stops all sound. The built-in voice is ${state.muted ? 'off' : 'on'}.`;
+    el.keys.textContent = `Keys: P plays the series in focus. A plays all series in turn. K speaks the key facts. M turns the built-in voice ${state.muted ? 'on' : 'off'}. Esc or Space stops all sound. The built-in voice is ${state.muted ? 'off' : 'on'}.`;
     announce(`Built-in voice ${state.muted ? 'off' : 'on'}.`);
   }
 });
