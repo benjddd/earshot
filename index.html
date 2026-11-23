@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Earshot</title>
+    <script type="module" src="/src/main.js"></script>
+  </head>
+  <body>
+    <div class="page">
+      <main class="sheet" id="sheet" aria-label="Chart sheet">
+        <p class="sheet-empty" id="sheet-empty">No chart yet.</p>
+      </main>
+      <aside class="band" aria-label="Controls and results">
+        <header class="band-head">
+          <h1 class="title">Earshot</h1>
+        </header>
+        <p class="lead">Supply one picture of a chart. Earshot reads its values, plays them as pitch, and checks them against data the model never saw.</p>
+        <p class="status" id="status" role="status" aria-live="polite">Step 0. The page builds. The reading comes next.</p>
+        <footer class="foot">
+          <p>Live: nothing yet.</p>
+          <p>Cached: nothing yet.</p>
+          <p>Fixed: the build prompt and house rules, at <a href="/prompt">Build prompt</a>.</p>
+        </footer>
+      </aside>
+    </div>
+  </body>
+</html>
