@@ -10,7 +10,8 @@
     <div class="page" id="page">
       <main class="sheet" id="sheet" aria-label="Chart and values">
         <p class="what" id="what" hidden></p>
-        <p class="statement" id="statement">No chart yet</p>
+        <label class="drop" id="drop" for="file-input">Paste, drop or choose a picture of a chart</label>
+        <p class="statement" id="statement"></p>
         <p class="statement2" id="statement2" hidden></p>
         <ul class="facts" id="facts" aria-label="Key facts" hidden></ul>
         <div class="sheet-row">
@@ -37,7 +38,7 @@
 
       <aside class="band" aria-label="Controls and results">
         <header class="band-head">
-          <h1 class="title">Earshot</h1>
+          <h1 class="title">Earshot. <span class="tagline">Hear the chart.</span></h1>
           <button type="button" class="link-btn" id="btn-prompt">Prompt</button>
         </header>
         <p class="lead">Supply one picture of a chart: paste it with Ctrl+V, choose a file, drop it or use the camera. Earshot reads its values, plays them as pitch, and Verify checks them against data the model never saw.</p>
@@ -45,8 +46,8 @@
         <div class="controls" role="group" aria-label="Supply a chart">
           <button type="button" class="btn btn-verb" id="btn-pick">Hear this chart</button>
           <input type="file" id="file-input" accept="image/*" hidden aria-hidden="true" tabindex="-1" />
-          <button type="button" class="btn" id="btn-sample">Sample</button>
-          <button type="button" class="btn" id="btn-break">Break it</button>
+          <button type="button" class="btn card" id="btn-sample"><span class="card-word">Sample</span><span class="card-note">phone photo taken tonight</span></button>
+          <button type="button" class="btn card" id="btn-break"><span class="card-word">Break it</span><span class="card-note">tonight's photo, glare painted on</span></button>
           <button type="button" class="btn" id="btn-camera">Use camera</button>
         </div>
         <div class="controls" role="group" aria-label="Result actions">
@@ -63,7 +64,7 @@
 
         <section class="claim" id="claim" aria-label="Selected value and summary" hidden></section>
 
-        <p class="keys" id="keys">Keys: P plays the series in focus. A plays all series in turn. K speaks the key facts. M turns the built-in voice off or on. Esc or Space stops all sound.</p>
+        <p class="keys" id="keys">Keys: P play, A all, K facts, M voice, Esc stop.</p>
 
         <footer class="foot">
           <p>Live: each reading of a supplied image and of the Sample by claude-fable-5-2, the pitch, the summary and Verify, computed on every use.</p>

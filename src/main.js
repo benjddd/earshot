@@ -1614,7 +1614,7 @@ document.addEventListener('keydown', (e) => {
     e.preventDefault();
     state.muted = !state.muted;
     if (state.muted) stopSpeech();
-    el.keys.textContent = `Keys: P plays the series in focus. A plays all series in turn. K speaks the key facts. M turns the built-in voice ${state.muted ? 'on' : 'off'}. Esc or Space stops all sound. The built-in voice is ${state.muted ? 'off' : 'on'}.`;
+    el.keys.textContent = `Keys: P play, A all, K facts, M voice, Esc stop. Voice ${state.muted ? 'off' : 'on'}.`;
     announce(`Built-in voice ${state.muted ? 'off' : 'on'}.`);
   }
 });
