@@ -492,3 +492,9 @@ html, body { background: var(--sheet); color: var(--ink); }
 .foot { margin-top: 0; }
 /* card thumbnails show the chart, not the browser bar of the photo */
 .btn.card { background-size: 190%; background-position: 45% 50%; }
+
+/* the name on the page: the wordmark "hearthechart", "the" in the accent; read aloud as "Hear the Chart" */
+.brand { min-width: 0; }
+.wordmark { font-family: var(--display); font-weight: 700; letter-spacing: 0; }
+.wordmark .the { color: var(--accent); }
+.brand .tagline { margin: 2px 0 0; font-size: 20px; font-weight: 400; }
