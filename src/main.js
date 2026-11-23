@@ -42,6 +42,7 @@ const PREPARED = {
   both: '/prepared/photo3.json',
 };
 const LATE_MS = 30000;
+const CROP_NOTE = 'Shown cropped; the model received the full photo.';
 
 const FIND_OUT = 'To find out: supply a sharper image of the same chart without glare, or ask the sender for the data behind it.';
 
@@ -56,7 +57,7 @@ const el = {
   brk: $('btn-break'), camera: $('btn-camera'), play: $('btn-play'), both: $('btn-both'), verify: $('btn-verify'),
   again: $('btn-again'), prompt: $('btn-prompt'), sheet: $('prompt-sheet'), sheetClose: $('btn-prompt-close'),
   sheetTitle: $('prompt-sheet-title'), sheetText: $('prompt-sheet-text'), keys: $('keys'),
-  what: $('what'), facts: $('facts'), hear: $('hear'), plot: $('plot'), plotCaption: $('plot-caption'), unread: $('unread'),
+  spoken: $('spoken'), what: $('what'), facts: $('facts'), hear: $('hear'), plot: $('plot'), plotCaption: $('plot-caption'), unread: $('unread'),
 };
 
 const state = {
@@ -78,6 +79,8 @@ function announce(text) {
 // event, or, if that event never fires, the browser reporting that it is no longer speaking.
 // Never a timer guessed from the length of the text.
 const synth = 'speechSynthesis' in window ? window.speechSynthesis : null;
+const SPEECH_START_MS = 3000; // a sentence not started by then is skipped; the demo never waits on a stuck voice
+const SPEECH_CAP_MS = 20000;  // fixed cap for one started sentence
 let speechRun = 0;      // changes whenever speech is cancelled or a new speech starts
 let lastCancel = 0;
 let liveUtterance = null; // kept in a variable so the browser cannot drop its end event
@@ -94,6 +97,7 @@ if (synth) {
 
 function stopSpeech() {
   speechRun += 1;
+  el.spoken.textContent = '';
   if (synth && (synth.speaking || synth.pending)) {
     synth.cancel();
     lastCancel = performance.now();
@@ -104,6 +108,7 @@ function speakSentence(text, run) {
   return new Promise((resolve) => {
     const u = new SpeechSynthesisUtterance(text);
     liveUtterance = u;
+    el.spoken.textContent = text; // every sentence is also seen, large, while it is said
     if (voice) u.voice = voice;
     u.lang = voice ? voice.lang : 'en-US';
     u.rate = SOUND.speechRate;
@@ -118,15 +123,24 @@ function speakSentence(text, run) {
       if (liveUtterance === u) liveUtterance = null;
       resolve();
     };
-    u.onstart = () => { started = true; };
+    let startedAt = 0;
+    u.onstart = () => { started = true; startedAt = performance.now(); };
     u.onend = finish;
     u.onerror = finish;
-    // Fallback only: the end event did not fire, but the browser has stopped speaking (or was cancelled).
+    // Fallbacks, none of them guessed from the text:
+    // - a sentence that has not STARTED 3 s after it was sent is skipped (its text stays on screen);
+    // - once started, its end event is awaited, or the browser reporting it stopped speaking, with a fixed 20 s cap.
+    const skip = () => {
+      synth.cancel();
+      lastCancel = performance.now();
+      finish();
+    };
     poll = setInterval(() => {
-      const age = performance.now() - t0;
+      const now = performance.now();
       if (run !== speechRun) { finish(); return; }
-      if ((started || age > 2000) && !synth.speaking && !synth.pending) finish();
-      if (age > 60000) finish();
+      if (!started) { if (now - t0 > SPEECH_START_MS) skip(); return; }
+      if (!synth.speaking && !synth.pending) { finish(); return; }
+      if (now - startedAt > SPEECH_CAP_MS) skip();
     }, 120);
     synth.speak(u);
   });
@@ -143,6 +157,7 @@ async function untilSilent() {
 async function speakOnly(text) {
   if (!synth) return;
   if (state.muted) {
+    el.spoken.textContent = text;
     const run = speechRun;
     const until = performance.now() + Math.min(12000, 600 + text.length * 65);
     while (performance.now() < until && run === speechRun) await wait(100);
@@ -407,6 +422,7 @@ async function supply(source, label, preparedId = null) {
   el.img.src = dataUrl;
   el.img.hidden = false;
   el.img.alt = 'The chart image supplied. Its values are in the table.';
+  el.img.classList.toggle('cropped', Boolean(preparedId));
   el.caption.textContent = label;
   el.figure.hidden = false;
   run();
@@ -422,7 +438,7 @@ async function supplySample() {
     const rec = await (await fetch(url)).json();
     const blob = await (await fetch(rec.image)).blob();
     state.record = null; // no cached reading stands in for a Sample
-    await supply(blob, `${rec.label} Read live.`, rec.id);
+    await supply(blob, `${rec.label} Read live. ${CROP_NOTE}`, rec.id);
   } catch {
     fail(...PREPARED_FAIL);
   }
@@ -448,12 +464,13 @@ async function showCached(rec, quiet = false) {
   state.cachedAt = rec.current.captured;
   state.seconds = 0;
   state.image = null;
-  state.label = `${rec.label} Read live.`;
+  state.label = `${rec.label} Read live. ${CROP_NOTE}`;
+  el.img.classList.add('cropped');
   el.again.disabled = true;
   el.img.src = rec.image;
   el.img.hidden = false;
   el.img.alt = 'The chart photo. Its values are in the table.';
-  el.caption.textContent = `${rec.label} Reading cached ${rec.current.captured} tonight. Run again reads it live.`;
+  el.caption.textContent = `${rec.label} Reading cached ${rec.current.captured} tonight. Run again reads it live. ${CROP_NOTE}`;
   el.figure.hidden = false;
   const id = rec.id;
   fetch(rec.image).then((r) => r.blob()).then(toJpegBase64).then((dataUrl) => {
@@ -840,6 +857,16 @@ function drawPlot(active) {
   const s = t.series[active];
   if (olds) g.append(svgEl('path', { d: path(s.points.map((p, pi) => [xi(p), olds[active][pi]])), class: 'plot-old' }));
   g.append(svgEl('path', { d: path(s.points.map((p) => [xi(p), p.value])), class: 'plot-active' }));
+  if (olds) {
+    // The differing points are marked: a magenta link between the two readings, and a hollow dot for the previous one.
+    s.points.forEach((p, pi) => {
+      const ov = olds[active][pi];
+      if (ov === null) return;
+      if (p.value !== null && differs(p.value, ov)) g.append(svgEl('line', { x1: x(xi(p)), x2: x(xi(p)), y1: y(p.value), y2: y(ov), class: 'plot-diff' }));
+      g.append(svgEl('circle', { cx: x(xi(p)), cy: y(ov), r: 6, class: differs(p.value, ov) ? 'plot-dot-old plot-dot-differs' : 'plot-dot-old' }));
+    });
+    g.append(svgEl('text', { id: 'plot-note', x: L + 10, y: T + 22, class: 'plot-note' }, ''));
+  }
   s.points.forEach((p) => {
     if (p.value !== null) g.append(svgEl('circle', { cx: x(xi(p)), cy: y(p.value), r: 5, class: 'plot-dot' }));
   });
@@ -858,6 +885,11 @@ function moveMarker(si, pi, old) {
   m.setAttribute('cx', state.plot.x(state.plot.xi(p)));
   m.setAttribute('cy', state.plot.y(v));
   m.setAttribute('visibility', 'visible');
+  // As the previous model's glide passes a differing point, the ring turns magenta and the two values are shown.
+  const hit = Boolean(old && state.old && p.value !== null && differs(p.value, v));
+  m.setAttribute('class', hit ? 'plot-marker plot-marker-hit' : 'plot-marker');
+  const note = document.getElementById('plot-note');
+  if (note) note.textContent = hit ? p.x + ': ' + fmt(p.value) + ' against ' + fmt(v) : '';
 }
 
 // K: the key facts, spoken on request. They are on screen all along.
@@ -1324,7 +1356,7 @@ async function playBoth() {
   const t = state.table;
   const prev = rec.previous;
   const prevLabel = `${prev.model}, captured ${prev.captured} tonight`;
-  el.caption.textContent = `${rec.label} Both readings are cached: ${MODEL_ID} captured ${rec.current.captured}, ${prev.model} captured ${prev.captured} tonight, same photo, same settings.`;
+  el.caption.textContent = `${rec.label} Both readings are cached: ${MODEL_ID} captured ${rec.current.captured}, ${prev.model} captured ${prev.captured} tonight, same photo, same settings. ${CROP_NOTE}`;
   state.old = alignOld();
   state.showOld = true;
   if (state.verify) { // a Verify done before the comparison covered one reading only: clear it

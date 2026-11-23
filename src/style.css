@@ -377,3 +377,26 @@ thead th { font-family: var(--digits); font-weight: 600; font-size: 22px; }
 .table-wrap .cell .old { color: var(--margin); }
 .table-wrap .cell.differs .old { color: var(--over); font-weight: 600; }
 .table-wrap .cell .old.old-match { color: var(--ink); }
+
+/* every sound is also seen */
+.spoken {
+  position: sticky;
+  bottom: 0;
+  margin: 16px 0 0;
+  padding: 10px 0 12px;
+  border-top: 2px solid var(--grat);
+  background: var(--sheet);
+  color: var(--ink);
+  font-size: 34px;
+  font-weight: 600;
+  line-height: 1.15;
+}
+.spoken:empty { display: none; }
+.plot-diff { stroke: var(--over); stroke-width: 3; }
+.plot-dot-old { fill: var(--sheet); stroke: var(--over); stroke-width: 3; }
+.plot-marker-hit { stroke: var(--over); stroke-width: 7; r: 18px; }
+.plot-note { font-family: var(--text); font-size: 24px; font-weight: 600; fill: var(--over); }
+.table-wrap .cell.differs.sounding-old { border-color: var(--over); background: var(--tint); }
+
+/* photos shown cropped to the chart, by CSS only; the file and what the model receives are unchanged */
+.figure img.cropped { object-view-box: inset(9.5% 8% 4% 8%); }
