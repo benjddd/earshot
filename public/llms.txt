@@ -1,0 +1,23 @@
+# Hear the Chart
+
+> Hear the Chart is a free web app that turns a picture of a chart into sound, speech and an accessible table. Built for blind and low-vision people; not yet tested with screen-reader users. You photograph, upload, paste or drop a chart; Claude, Anthropic's model, reads its values; the page plays them as a melody, speaks a one-line headline, and puts every value in a table you can move through by keyboard.
+
+## How it works
+
+- The picture is redrawn in the browser as a JPEG and sent to Claude to read the chart's values. The site does not store or log the photo.
+- The values come back as a table. Plain code on the page derives the headline, the key facts and each series' trend from that table.
+- Each series plays as one continuous tone: a higher value is a higher pitch.
+- In the table, Left and Right step through a series with a note and the spoken value; Up and Down change series; T speaks the trend. P plays, A plays all series, K speaks the key facts, M switches the built-in voice, Escape or Space stops.
+- Verify compares the reading with data you supply (a CSV or JSON file). The file is read in the browser and never leaves the page.
+
+## Limits
+
+- A value that cannot be read from the picture is marked "Not known", with the reason; it is not guessed.
+- Readings can be wrong. Glare, blur, small print and charts without labelled axes make reading harder. Verify against the source data when it matters.
+- A reading takes from a few seconds to about half a minute, and up to a minute for large or glare-heavy photos.
+- Sound uses the browser's Web Audio; speech uses the browser's built-in voice.
+
+## Links
+
+- [Hear the Chart](https://hearthechart.com/)
+- [Source code on GitHub](https://github.com/benjddd/hear-the-chart)

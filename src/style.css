@@ -70,31 +70,7 @@ a { color: var(--ink); text-decoration-thickness: 2px; text-underline-offset: 4p
   color: var(--over);
 }
 .statement-match { color: var(--ink); }
-.statement2 {
-  margin: -8px 0 16px;
-  font-weight: 700;
-  font-size: 48px;
-  line-height: 1.05;
-  color: var(--over);
-}
-.statement2.statement-match { color: var(--ink); }
 
-/* both readings: the previous model's value under this model's value */
-.cell .old {
-  display: flex;
-  flex-wrap: wrap;
-  flex-basis: 100%;
-  align-items: center;
-  gap: 2px 4px;
-  color: var(--over);
-  font-size: 20px;
-}
-.cell .old-tag { font-family: var(--text); font-size: 18px; font-weight: 400; color: var(--margin); }
-.cell .old.old-match { color: var(--ink); }
-.cell .old .tri { border-inline-width: 6px; border-bottom-width: 11px; }
-.cell.differs { border: 3px solid var(--over); background: var(--tint); }
-.cell.sounding-old .old { text-decoration: underline; text-decoration-thickness: 3px; }
-.claim-diff { color: var(--over); font-weight: 600; }
 
 .sheet-row {
   display: flex;
@@ -125,10 +101,7 @@ a { color: var(--ink); text-decoration-thickness: 2px; text-underline-offset: 4p
 .sheet-row.wide .cell { font-size: 22px; min-width: 0; padding: 2px 3px; gap: 3px; }
 .sheet-row.wide th { font-size: 18px; white-space: normal; }
 .sheet-row.wide .unknown-word { overflow-wrap: normal; }
-/* both readings showing: the table needs the room, the image gives way */
-.sheet-row.comparing .figure { flex: 0 1 300px; }
-.sheet-row.comparing .table-wrap { flex: 1 1 640px; }
-.sheet-row.comparing .cell .block { padding: 0 3px; }
+
 
 table { border-collapse: collapse; width: 100%; }
 caption { text-align: start; padding-bottom: 8px; font-weight: 600; }
@@ -208,20 +181,6 @@ thead th { font-family: var(--digits); font-weight: 600; font-size: 22px; }
 
 .title { margin: 0; font-weight: 700; font-size: 64px; line-height: 1; }
 
-.link-btn {
-  min-height: 56px;
-  padding: 0 4px;
-  border: 0;
-  background: none;
-  color: var(--ink);
-  font: inherit;
-  font-weight: 600;
-  text-decoration: underline;
-  text-decoration-thickness: 2px;
-  text-underline-offset: 4px;
-  cursor: pointer;
-}
-
 .lead { margin: 0; }
 
 .controls { display: flex; flex-wrap: wrap; gap: 10px; }
@@ -278,34 +237,6 @@ thead th { font-family: var(--digits); font-weight: 600; font-size: 22px; }
 
 .keys { margin: 0; color: var(--margin); font-size: 18px; }
 
-.foot { margin-top: auto; color: var(--margin); font-size: 18px; }
-.foot p { margin: 0 0 4px; }
-.foot a { color: var(--margin); }
-
-/* Prompt sheet: full screen, replaces the page while open */
-.prompt-sheet { min-height: 100vh; padding: 24px 32px 64px; max-width: 1400px; }
-.prompt-sheet h2 { margin: 16px 0 8px; font-weight: 700; font-size: 48px; line-height: 1.1; }
-.prompt-sheet p { margin: 0 0 16px; }
-
-/* /prompt */
-.prompt-page { max-width: 1200px; padding: 24px 32px 64px; }
-.prompt-title { margin: 8px 0; font-weight: 700; font-size: 64px; line-height: 1.05; }
-.prompt-meta { margin: 0 0 24px; color: var(--margin); }
-.prompt-page h2 {
-  margin: 32px 0 8px;
-  padding-top: 16px;
-  border-top: 2px solid var(--grat);
-  font-weight: 600;
-  font-size: 36px;
-}
-.prompt-text {
-  margin: 0 0 16px;
-  font-family: var(--text);
-  font-size: 22px;
-  line-height: 1.4;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
 
 @media (max-width: 1100px) {
   .page { grid-template-columns: minmax(0, 1fr) 360px; }
@@ -331,7 +262,6 @@ thead th { font-family: var(--digits); font-weight: 600; font-size: 22px; }
 .plot-tick { font-family: var(--digits); font-weight: 500; font-size: 20px; fill: var(--margin); }
 .plot-other { fill: none; stroke: var(--grat); stroke-width: 2; }
 .plot-active { fill: none; stroke: var(--over); stroke-width: 4; stroke-linejoin: round; }
-.plot-old { fill: none; stroke: var(--over); stroke-width: 3; stroke-dasharray: 10 8; }
 .plot-dot { fill: var(--over); }
 .plot-marker { fill: none; stroke: var(--ink); stroke-width: 4; transition: cx 120ms linear, cy 120ms linear; }
 
@@ -343,7 +273,6 @@ thead th { font-family: var(--digits); font-weight: 600; font-size: 22px; }
 .table-wrap .cell { font-size: 22px; font-weight: 500; min-height: 34px; min-width: 0; }
 .table-wrap .cell-unknown, .table-wrap .cell.is-unknown { border: 2px solid transparent; background-image: none; }
 .table-wrap .unknown-word { color: var(--margin); font-weight: 400; }
-.table-wrap.comparing .cell .old { font-size: 18px; }
 
 /* the check line: small and quiet */
 .check { margin: 0; font-size: 20px; }
@@ -365,18 +294,11 @@ thead th { font-family: var(--digits); font-weight: 600; font-size: 22px; }
   .statement.headline { font-size: 28px; }
   .hear, .figure { flex: 1 1 100%; }
   .table-wrap { overflow-x: auto; }
-  .foot { margin-top: 16px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .plot-marker { transition: none; }
 }
-
-/* both readings in the table, calm: no boxes; the previous model's value is magenta where the readings differ */
-.table-wrap .cell.differs { border-color: transparent; background: none; }
-.table-wrap .cell .old { color: var(--margin); }
-.table-wrap .cell.differs .old { color: var(--over); font-weight: 600; }
-.table-wrap .cell .old.old-match { color: var(--ink); }
 
 /* every sound is also seen */
 .spoken {
@@ -392,16 +314,8 @@ thead th { font-family: var(--digits); font-weight: 600; font-size: 22px; }
   line-height: 1.15;
 }
 .spoken:empty { display: none; }
-.plot-diff { stroke: var(--over); stroke-width: 3; }
-.plot-dot-old { fill: var(--sheet); stroke: var(--over); stroke-width: 3; }
-.plot-marker-hit { stroke: var(--over); stroke-width: 7; r: 18px; }
-.plot-note { font-family: var(--text); font-size: 24px; font-weight: 600; fill: var(--over); }
-.table-wrap .cell.differs.sounding-old { border-color: var(--over); background: var(--tint); }
 
-/* photos shown cropped to the chart, by CSS only; the file and what the model receives are unchanged */
-.figure img.cropped { object-view-box: inset(9.5% 8% 4% 8%); }
-
-/* ---------- UI pass (Ben, 19:15): a score sheet. Overrides the colours and type above. ---------- */
+/* ---------- a score sheet. Overrides the colours and type above. ---------- */
 :root {
   --sheet: #f6f1e7;   /* warm paper */
   --ink: #14213d;     /* deep ink: all text */
@@ -439,28 +353,8 @@ html, body { background: var(--sheet); color: var(--ink); }
 .sheet:has(.figure:not([hidden])) .drop,
 .sheet:has(.statement:not(:empty)) .drop { display: none; }
 
-/* sample photos as labelled cards */
-.btn.card {
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-  align-items: flex-start;
-  flex: 1 1 150px;
-  min-height: 132px;
-  padding: 0;
-  background-color: var(--sheet);
-  background-size: cover;
-  background-position: center 40%;
-  text-align: start;
-}
-#btn-sample { background-image: url('/samples/photo2.jpg'); }
-#btn-break { background-image: url('/samples/photo5.jpg'); }
-.card-word, .card-note { display: block; width: 100%; padding: 2px 8px; background: var(--sheet); color: var(--ink); }
-.card-word { font-weight: 600; padding-top: 6px; }
-.card-note { font-weight: 400; font-size: 20px; padding-bottom: 6px; }
-
 /* one primary action: result actions appear with a reading, not greyed out before it */
-#btn-play:disabled, #btn-verify:disabled, #btn-again:disabled { display: none; }
+#btn-play:disabled, #btn-verify:disabled, #btn-data:disabled { display: none; }
 
 /* numbers in a tabular monospace */
 .cell, .claim-value, .plot-tick, thead th { font-family: var(--digits); font-variant-numeric: tabular-nums; }
@@ -478,23 +372,32 @@ html, body { background: var(--sheet); color: var(--ink); }
 }
 .plot-grid { stroke-width: 1; }
 .plot-marker { stroke: var(--accent); stroke-width: 5; }
-.plot-marker-hit { stroke: var(--accent); stroke-width: 8; }
 
 /* all text is ink; a word and a shape carry the state */
-.check-good, .check-bad, .claim-diff, .claim-mismatch, .claim-unknown, .unknown-word { color: var(--ink); }
+.check-good, .check-bad, .claim-mismatch, .claim-unknown, .unknown-word { color: var(--ink); }
 .cell .block, .block { background: var(--ink); color: var(--sheet); }
 .btn-verb { background: var(--ink); color: var(--sheet); }
 
 /* body 20 px or more */
-.foot, .keys, .table-help, .figure figcaption, .hear figcaption, .mark-line, .check-small, .claim-unit,
-.table-wrap th, .table-wrap .unknown-word, .cell .old-tag, .table-wrap.comparing .cell .old, .check { font-size: 20px; }
+.keys, .table-help, .figure figcaption, .hear figcaption, .mark-line, .check-small, .claim-unit,
+.table-wrap th, .table-wrap .unknown-word, .check { font-size: 20px; }
 .keys { margin-top: auto; }
-.foot { margin-top: 0; }
-/* card thumbnails show the chart, not the browser bar of the photo */
-.btn.card { background-size: 190%; background-position: 45% 50%; }
 
 /* the name on the page: the wordmark "hearthechart", "the" in the accent; read aloud as "Hear the Chart" */
 .brand { min-width: 0; }
 .wordmark { font-family: var(--display); font-weight: 700; letter-spacing: 0; }
 .wordmark .the { color: var(--accent); }
 .brand .tagline { margin: 2px 0 0; font-size: 20px; font-weight: 400; }
+
+/* the one line about where the photo goes */
+.privacy { margin: 0; color: var(--margin); font-size: 20px; }
+
+/* how it works and questions: static, collapsed, at the foot of the band */
+.about { font-size: 20px; }
+.about details { border-top: 2px solid var(--grat); padding: 8px 0; }
+.about summary { cursor: pointer; }
+.about summary h2 { display: inline; margin: 0; font-size: 22px; font-weight: 600; }
+.about h3 { margin: 12px 0 2px; font-size: 20px; font-weight: 600; }
+.about p { margin: 0; }
+.about ol { margin: 8px 0 0; padding-inline-start: 24px; }
+.about li { margin: 0 0 4px; }

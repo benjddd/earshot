@@ -1,0 +1,5 @@
+{
+  "functions": {
+    "api/read-chart.js": { "maxDuration": 120 }
+  }
+}

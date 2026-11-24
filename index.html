@@ -3,16 +3,44 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Hear the Chart</title>
+    <title>Hear the Chart: hear any chart, by ear</title>
+    <meta name="description" content="Photograph or paste a chart and hear it as sound, speech and an accessible table. Built for blind and low-vision people." />
+    <link rel="canonical" href="https://hearthechart.com/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Hear the Chart" />
+    <meta property="og:title" content="Hear the Chart: hear any chart, by ear" />
+    <meta property="og:description" content="Photograph or paste a chart and hear it as sound, speech and an accessible table. Built for blind and low-vision people." />
+    <meta property="og:url" content="https://hearthechart.com/" />
+    <meta property="og:image" content="https://hearthechart.com/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="The wordmark hear the chart and the tagline Any chart, by ear." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Hear the Chart: hear any chart, by ear" />
+    <meta name="twitter:description" content="Photograph or paste a chart and hear it as sound, speech and an accessible table. Built for blind and low-vision people." />
+    <meta name="twitter:image" content="https://hearthechart.com/og.png" />
+    <meta name="twitter:image:alt" content="The wordmark hear the chart and the tagline Any chart, by ear." />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "Hear the Chart",
+        "url": "https://hearthechart.com/",
+        "description": "Photograph or paste a chart and hear it as sound, speech and an accessible table. Built for blind and low-vision people.",
+        "applicationCategory": "AccessibilityApplication",
+        "operatingSystem": "Any (web browser)",
+        "isAccessibleForFree": true,
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+      }
+    </script>
     <script type="module" src="/src/main.js"></script>
   </head>
   <body>
     <div class="page" id="page">
       <main class="sheet" id="sheet" aria-label="Chart and values">
         <p class="what" id="what" hidden></p>
-        <label class="drop" id="drop" for="file-input">Paste, drop or choose a picture of a chart</label>
+        <label class="drop" id="drop" for="file-input">Photograph or upload a chart to hear it.</label>
         <p class="statement" id="statement"></p>
-        <p class="statement2" id="statement2" hidden></p>
         <ul class="facts" id="facts" aria-label="Key facts" hidden></ul>
         <div class="sheet-row">
           <figure class="hear" id="hear" hidden>
@@ -31,7 +59,7 @@
             <thead id="values-head"></thead>
             <tbody id="values-body"></tbody>
           </table>
-          <p class="table-help" id="table-help">In the table: Left and Right step through a series with pitch and the spoken value. Up and Down choose a series and play it. Home and End jump to its ends. T gives the trend. Enter names the source. With Play both, the second line in a cell is claude-fable-5-1; struck through means mismatch with the record.</p>
+          <p class="table-help" id="table-help">In the table: Left and Right step through a series with pitch and the spoken value. Up and Down choose a series and play it. Home and End jump to its ends. T gives the trend. Enter names the source. After Verify, a struck-through value is a mismatch with your data.</p>
         </div>
         <p class="spoken" id="spoken" aria-hidden="true"></p>
       </main>
@@ -39,22 +67,20 @@
       <aside class="band" aria-label="Controls and results">
         <header class="band-head">
           <div class="brand"><h1 class="title" aria-label="Hear the Chart"><span class="wordmark" aria-hidden="true">hear<span class="the">the</span>chart</span></h1><p class="tagline">Any chart, by ear.</p></div>
-          <button type="button" class="link-btn" id="btn-prompt">Prompt</button>
         </header>
-        <p class="lead">Supply one picture of a chart: paste it with Ctrl+V, choose a file, drop it or use the camera. Hear the Chart reads its values, plays them as pitch, and Verify checks them against data the model never saw.</p>
+        <p class="lead">Hear the Chart reads the values in a picture of a chart and plays them as a melody, with a spoken headline and a table you can explore by keyboard.</p>
 
         <div class="controls" role="group" aria-label="Supply a chart">
           <button type="button" class="btn btn-verb" id="btn-pick">Hear this chart</button>
           <input type="file" id="file-input" accept="image/*" hidden aria-hidden="true" tabindex="-1" />
-          <button type="button" class="btn card" id="btn-sample"><span class="card-word">Sample</span><span class="card-note">phone photo taken tonight</span></button>
-          <button type="button" class="btn card" id="btn-break"><span class="card-word">Break it</span><span class="card-note">tonight's photo, glare painted on</span></button>
           <button type="button" class="btn" id="btn-camera">Use camera</button>
         </div>
+        <p class="privacy" id="privacy">Your photo is sent to Claude, Anthropic's model, to be read. This site does not store or log it.</p>
         <div class="controls" role="group" aria-label="Result actions">
           <button type="button" class="btn" id="btn-play" disabled aria-keyshortcuts="P">Play</button>
-          <button type="button" class="btn" id="btn-both">Play both</button>
           <button type="button" class="btn" id="btn-verify" disabled>Verify</button>
-          <button type="button" class="btn" id="btn-again" disabled>Run again</button>
+          <button type="button" class="btn" id="btn-data" disabled>Verify against data</button>
+          <input type="file" id="data-input" accept=".csv,.json,text/csv,application/json" hidden aria-hidden="true" tabindex="-1" />
         </div>
 
         <p class="status" id="status">No chart read yet.</p>
@@ -66,21 +92,34 @@
 
         <p class="keys" id="keys">Keys: P play, A all, K facts, M voice, Esc stop.</p>
 
-        <footer class="foot">
-          <p>Live: each reading of a supplied image and of the Sample by claude-fable-5-2, the pitch, the summary and Verify, computed on every use.</p>
-          <p>Cached: Break it (18:50) and Play both (18:43) show readings captured tonight, labelled with model and time. Play both: claude-fable-5-2 and claude-fable-5-1, same photo, same settings. Run again reads live.</p>
-          <p>Fixed: tonight's 3 charts, the withheld data behind them (18:13), the phone photos of them (18:42). The glare in Break it was painted onto a photo. <a href="/prompt">Build prompt</a></p>
-        </footer>
+        <section class="about" aria-labelledby="about-title">
+          <details>
+            <summary><h2 id="about-title">How it works</h2></summary>
+            <ol>
+              <li>You photograph, upload, paste or drop a picture of a chart.</li>
+              <li>Claude, Anthropic's model, reads the values in the picture.</li>
+              <li>You hear a melody of the data, higher values as higher notes, and a spoken headline.</li>
+              <li>You move through every value in the table by keyboard, each with a note and its spoken value.</li>
+              <li>Verify checks the reading against your own data, if you have it.</li>
+            </ol>
+          </details>
+          <details>
+            <summary><h2>Questions</h2></summary>
+            <h3>Who is it for?</h3>
+            <p>It is built for blind and low-vision people who are handed a chart as a picture. It has not yet been tested with screen-reader users.</p>
+            <h3>Does it store my photo?</h3>
+            <p>No. Your photo is sent to Claude, Anthropic's model, to be read. This site does not store or log it. A data file you choose for Verify is read in your browser and never leaves the page.</p>
+            <h3>What charts work?</h3>
+            <p>Line charts, bar charts, small multiples and heatmaps with readable labels work best. A sharp photo taken straight on, without glare, reads best. Readings can be wrong, so check against the source data when it matters.</p>
+            <h3>What if a value can't be read?</h3>
+            <p>It says "Not known" and gives the reason, rather than guess. The same goes for a whole chart that cannot be read.</p>
+            <h3>Is it free?</h3>
+            <p>Yes.</p>
+          </details>
+        </section>
+
       </aside>
     </div>
 
-    <section class="prompt-sheet" id="prompt-sheet" aria-labelledby="prompt-sheet-title" hidden>
-      <button type="button" class="btn" id="btn-prompt-close">Close prompt</button>
-      <h2 id="prompt-sheet-title" tabindex="-1">Runtime prompt, word for word</h2>
-      <p id="prompt-sheet-meta"></p>
-      <pre class="prompt-text" id="prompt-sheet-text"></pre>
-      <p id="prompt-sheet-end">The model was not given: the data file tonight's charts were drawn from (earshot-data.json), any file name, caption or chart id.</p>
-      <p><a href="/prompt">Build prompt and house rules</a></p>
-    </section>
   </body>
 </html>
